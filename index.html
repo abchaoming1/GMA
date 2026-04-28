@@ -1,0 +1,1521 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GMA 2026 销售预测看板</title>
+  <style>
+    :root {
+      --bg: #f6f7f3;
+      --panel: #ffffff;
+      --ink: #22242a;
+      --muted: #68707a;
+      --line: #dfe4dc;
+      --green: #2c7a57;
+      --teal: #127f8c;
+      --amber: #c57b1c;
+      --rose: #b4475c;
+      --blue: #3766a6;
+      --soft-green: #e7f2ec;
+      --soft-amber: #fff2da;
+      --shadow: 0 10px 30px rgba(32, 38, 31, .08);
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    header {
+      padding: 22px 28px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcf8;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .topbar {
+      display: flex;
+      gap: 18px;
+      align-items: end;
+      justify-content: space-between;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 780;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    button, .file-label {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      min-height: 34px;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-weight: 650;
+      cursor: pointer;
+      box-shadow: 0 1px 0 rgba(0,0,0,.02);
+      white-space: nowrap;
+    }
+    button.primary {
+      background: var(--green);
+      color: white;
+      border-color: var(--green);
+    }
+    button:hover, .file-label:hover { border-color: #aab5aa; }
+    .hidden-file { display: none; }
+    main {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 20px 28px 34px;
+    }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 18px;
+      overflow-x: auto;
+    }
+    .tab {
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 11px 12px 10px;
+      border-bottom: 3px solid transparent;
+    }
+    .tab.active {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
+    section.view { display: none; }
+    section.view.active { display: block; }
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+    .kpis {
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .kpi {
+      padding: 14px 15px;
+      min-height: 106px;
+    }
+    .kpi-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+      white-space: nowrap;
+    }
+    .kpi-value {
+      font-size: 23px;
+      font-weight: 780;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+    .kpi-sub {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .dashboard-grid {
+      grid-template-columns: minmax(0, 1.5fr) minmax(320px, .8fr);
+      margin-top: 14px;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px 8px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      font-weight: 760;
+    }
+    .small-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .chart {
+      padding: 4px 12px 14px;
+      min-height: 330px;
+    }
+    .chart svg {
+      display: block;
+      width: 100%;
+      height: 320px;
+    }
+    #paretoChart, #skuChart {
+      min-height: 405px;
+    }
+    #paretoChart svg, #skuChart svg {
+      height: 390px;
+    }
+    .progress-wrap {
+      padding: 4px 16px 18px;
+    }
+    .progress-track {
+      height: 18px;
+      background: #e9ede6;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--green), var(--teal));
+      transition: width .25s ease;
+    }
+    .summary-lines {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+      color: var(--muted);
+    }
+    .insight-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .insight {
+      border-left: 3px solid var(--teal);
+      background: #f7fbf8;
+      padding: 8px 10px;
+      color: #334047;
+      line-height: 1.45;
+      border-radius: 4px;
+    }
+    .insight.risk {
+      border-left-color: var(--rose);
+      background: #fff7f8;
+    }
+    .conclusion-text {
+      padding: 2px 16px 16px;
+      color: #27313a;
+      font-size: 15px;
+      line-height: 1.6;
+      font-weight: 680;
+    }
+    .line-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid #edf0ea;
+      padding-bottom: 7px;
+    }
+    .line-item strong {
+      color: var(--ink);
+      font-weight: 730;
+      text-align: right;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-top: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+    #dataTable {
+      min-width: 1760px;
+    }
+    #data2025Table {
+      min-width: 1680px;
+    }
+    #skuTable {
+      min-width: 1760px;
+    }
+    #skuGapTable {
+      min-width: 1540px;
+    }
+    th, td {
+      padding: 8px 9px;
+      border-bottom: 1px solid #e8ece5;
+      text-align: right;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8faf5;
+      color: #4d5660;
+      font-size: 12px;
+      font-weight: 720;
+      z-index: 2;
+    }
+    td.left, th.left { text-align: left; }
+    .num-input, .text-input, .select-input {
+      width: 100%;
+      min-width: 72px;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 5px;
+      padding: 5px 6px;
+      font: inherit;
+      text-align: right;
+      color: var(--ink);
+    }
+    .text-input, .select-input { text-align: left; min-width: 120px; }
+    .num-input:focus, .text-input:focus, .select-input:focus {
+      outline: none;
+      border-color: #8bb6a1;
+      background: #fbfffb;
+      box-shadow: 0 0 0 3px rgba(44, 122, 87, .12);
+    }
+    .positive { color: var(--green); font-weight: 700; }
+    .negative { color: var(--rose); font-weight: 700; }
+    .risk-cell {
+      color: var(--rose);
+      font-weight: 800;
+      background: #fff4f6;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 720;
+      background: var(--soft-green);
+      color: var(--green);
+    }
+    .pill.plan {
+      background: var(--soft-amber);
+      color: var(--amber);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 160px 160px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+    }
+    .form-row label {
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .form-row input {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 8px;
+      text-align: right;
+      font: inherit;
+      background: #fff;
+    }
+    .two-col {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .sku-grid {
+      grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+    }
+    .bars {
+      padding: 6px 16px 16px;
+      display: grid;
+      gap: 10px;
+    }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 150px 1fr 92px;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .bar-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 650;
+    }
+    .bar-track {
+      height: 14px;
+      background: #e9ede6;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--teal);
+      border-radius: 999px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      background: var(--green);
+    }
+    .status-dot.plan { background: var(--amber); }
+    .empty-state {
+      padding: 24px;
+      color: var(--muted);
+    }
+    @media (max-width: 1100px) {
+      .kpis, .dashboard-grid, .two-col, .sku-grid { grid-template-columns: 1fr; }
+      .topbar { align-items: start; flex-direction: column; }
+      .controls { justify-content: flex-start; }
+    }
+    @media (max-width: 720px) {
+      header, main { padding-left: 14px; padding-right: 14px; }
+      .form-row { grid-template-columns: 1fr; }
+      .kpi-value { font-size: 20px; }
+      table { min-width: 760px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div>
+        <h1>GMA 2026 销售预测看板</h1>
+        <div class="subtitle" id="sourceInfo"></div>
+      </div>
+      <div class="controls">
+        <button class="primary" id="saveBtn">保存</button>
+        <button id="allocateBtn">重置月度目标</button>
+        <button id="exportBtn">导出Excel</button>
+        <label class="file-label" for="importFile">导入数据</label>
+        <input id="importFile" class="hidden-file" type="file" accept="application/json">
+        <button id="resetBtn">恢复初始</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <nav class="tabs" aria-label="Views">
+      <button class="tab active" data-view="dashboard">总览</button>
+      <button class="tab" data-view="monthly">月度目标</button>
+      <button class="tab" data-view="sku">SKU 分析</button>
+      <button class="tab" data-view="data2025">2025 数据</button>
+      <button class="tab" data-view="data">2026 数据</button>
+      <button class="tab" data-view="inventory">库存</button>
+    </nav>
+
+    <section id="dashboard" class="view active">
+      <div class="grid kpis">
+        <div class="panel kpi"><div class="kpi-label">2025 Total Income</div><div class="kpi-value" id="kpiBaselineIncome"></div><div class="kpi-sub">营收基线</div></div>
+        <div class="panel kpi"><div class="kpi-label">2026 营收目标</div><div class="kpi-value" id="kpiTarget"></div><div class="kpi-sub"><span id="growthText"></span> 同比增长目标</div></div>
+        <div class="panel kpi"><div class="kpi-label">2026 已录营收</div><div class="kpi-value" id="kpiIncome"></div><div class="kpi-sub" id="incomeSub">Total Income</div></div>
+        <div class="panel kpi"><div class="kpi-label">营收缺口</div><div class="kpi-value" id="kpiGap"></div><div class="kpi-sub" id="gapSub"></div></div>
+        <div class="panel kpi"><div class="kpi-label">2026 已录 QTY</div><div class="kpi-value" id="kpiQty"></div><div class="kpi-sub">销量口径</div></div>
+        <div class="panel kpi"><div class="kpi-label">销量第一 SKU</div><div class="kpi-value" id="kpiTopSku"></div><div class="kpi-sub" id="topSkuSub"></div></div>
+      </div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-head"><h2>本月结论</h2><span class="small-note">按当前月份与已录数据自动生成</span></div>
+        <div id="monthlyConclusion" class="conclusion-text"></div>
+      </div>
+
+      <div class="grid dashboard-grid">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>月度营收目标 vs 实际</h2>
+            <span class="small-note">2025 营收基线 / 2026 月度目标 / 2026 已录营收</span>
+          </div>
+          <div id="monthlyChart" class="chart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>自动洞察</h2><span class="small-note" id="progressLabel"></span></div>
+          <div class="progress-wrap">
+            <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="summary-lines" id="summaryLines"></div>
+            <div id="insightList" class="insight-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid two-col" style="margin-top:14px;">
+        <div class="panel">
+          <div class="panel-head"><h2>营收瀑布图</h2><span class="small-note">2025 基线、增长目标、2026 已录与缺口</span></div>
+          <div id="waterfallChart" class="chart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>SKU 销量 Pareto</h2><span class="small-note">按 2026 QTY 排名与累计占比</span></div>
+          <div id="paretoChart" class="chart"></div>
+        </div>
+      </div>
+
+      <div class="grid two-col" style="margin-top:14px;">
+        <div class="panel">
+          <div class="panel-head"><h2>活动类型对比</h2><span class="small-note">按 Total Income 与 QTY 对比</span></div>
+          <div id="typeChart" class="chart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>SKU 销量 Top 10</h2><span class="small-note">按 2026 QTY 排名</span></div>
+          <div id="skuBars" class="bars"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="monthly" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>以终为始目标拆解</h2>
+          <span class="small-note">年度目标 = 2025 Total Income 营收 x (1 + 增长率)</span>
+        </div>
+        <div class="form-row">
+          <label for="growthInput">增长率</label>
+          <input id="growthInput" type="number" step="1" min="-100" max="500">
+          <span class="small-note">当前目标为 2025 年 Total Income 营收增长 50%，月度目标可直接改。</span>
+        </div>
+        <div class="table-wrap">
+          <table id="monthlyTable"></table>
+        </div>
+      </div>
+    </section>
+
+    <section id="sku" class="view">
+      <div class="grid sku-grid">
+        <div class="panel">
+          <div class="panel-head"><h2>SKU 销量 Pareto</h2><span class="small-note">2026 销量排名与累计占比</span></div>
+          <div id="skuChart" class="chart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>SKU 明细</h2><span class="small-note">数量、收入、差距</span></div>
+          <div class="table-wrap">
+            <table id="skuTable"></table>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-head"><h2>未达目标 SKU</h2><span class="small-note">目标 = 2025 QTY / Total Income x (1 + 增长率)，两个目标都可单独改</span></div>
+        <div class="table-wrap">
+          <table id="skuGapTable"></table>
+        </div>
+      </div>
+    </section>
+
+    <section id="data2025" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>2025 活动与 SKU 数据</h2>
+          <span class="small-note">完整展示 2025 原表口径，Rev 与 Total Income 分开列</span>
+        </div>
+        <div class="table-wrap">
+          <table id="data2025Table"></table>
+        </div>
+      </div>
+    </section>
+
+    <section id="data" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>2026 活动与 SKU 数据</h2>
+          <span class="small-note">数字改动后会即时重算；保存后留在本浏览器</span>
+        </div>
+        <div class="table-wrap">
+          <table id="dataTable"></table>
+        </div>
+      </div>
+    </section>
+
+    <section id="inventory" class="view">
+      <div class="panel">
+        <div class="panel-head"><h2>2026 仍有库存</h2><span class="small-note">来自原 workbook 库存页</span></div>
+        <div class="table-wrap">
+          <table id="inventoryTable"></table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const INITIAL_STATE = {"source": {"file": "D:\\Users\\015558\\桌面\\GMA促销计划与实际销售情况.xlsx", "generatedAt": "2026-04-28 14:51", "currentMonth": 4}, "targetGrowth": 0.5, "rows2025": [{"year": 2025, "groupId": "2025-g1", "isGroupStart": true, "month": 5, "type": "GMA", "date": "2025-05-29", "sku": "T910-ST-BG-US", "model": "T910+Case", "priceText": "$199.95->94.95", "promoPrice": 94.95, "inventory": 1500.0, "qty": 1498.0, "totalQty": 2997.0, "grossRev": 142235.1, "totalIncome": 142235.1, "groupTotalIncome": 284565.15, "originalFirstPayment": 67584.223125, "originalReturnsRatio": 0.0283616950283617, "originalReturnsAmount": 85.0, "originalSecondPayment": 8070.75, "originalActualRev": 208910.176875, "firstPayment": 33780.83625, "secondPayment": 4034.0285285285286, "returnsRatio": 0.0283616950283617, "returnsAmount": 85.0, "actualRev": 104420.23522147148, "netRev": 104420.23522147148}, {"year": 2025, "groupId": "2025-g1", "isGroupStart": false, "month": 5, "type": "GMA", "date": "2025-05-29", "sku": "T910-ST-BK-US", "model": "T910+Case", "priceText": "$199.95->94.95", "promoPrice": 94.95, "inventory": 1500.0, "qty": 1499.0, "totalQty": 2997.0, "grossRev": 142330.05, "totalIncome": 142330.05, "groupTotalIncome": 284565.15, "originalFirstPayment": 67584.223125, "originalReturnsRatio": 0.0283616950283617, "originalReturnsAmount": 85.0, "originalSecondPayment": 8070.75, "originalActualRev": 208910.176875, "firstPayment": 33803.386875, "secondPayment": 4036.721471471471, "returnsRatio": 0.0283616950283617, "returnsAmount": 85.0, "actualRev": 104489.94165352851, "netRev": 104489.94165352851}, {"year": 2025, "groupId": "2025-g2", "isGroupStart": true, "month": 7, "type": "VIEW", "date": "2025-07-05", "sku": "S810-ST-BK-US", "model": "S810+Bag", "priceText": "$199.95 ->$84.95", "promoPrice": 94.95, "inventory": 3800.0, "qty": 780.0, "totalQty": 1799.0, "grossRev": 74061.0, "totalIncome": 74061.0, "groupTotalIncome": 170815.05, "originalFirstPayment": 40568.574375, "originalReturnsRatio": 0.0344635908838244, "originalReturnsAmount": 62.0, "originalSecondPayment": 5886.9, "originalActualRev": 124359.575625, "firstPayment": 17589.4875, "secondPayment": 2552.4080044469147, "returnsRatio": 0.0344635908838244, "returnsAmount": 62.0, "actualRev": 53919.10449555309, "netRev": 53919.10449555309}, {"year": 2025, "groupId": "2025-g2", "isGroupStart": false, "month": 7, "type": "VIEW", "date": "2025-07-05", "sku": "S810-ST-BG-US", "model": "S810+Bag", "priceText": "$199.95 ->$84.95", "promoPrice": 94.95, "inventory": 400.0, "qty": 361.0, "totalQty": 1799.0, "grossRev": 34276.95, "totalIncome": 34276.95, "groupTotalIncome": 170815.05, "originalFirstPayment": 40568.574375, "originalReturnsRatio": 0.0344635908838244, "originalReturnsAmount": 62.0, "originalSecondPayment": 5886.9, "originalActualRev": 124359.575625, "firstPayment": 8140.775624999999, "secondPayment": 1181.306781545303, "returnsRatio": 0.0344635908838244, "returnsAmount": 62.0, "actualRev": 24954.8675934547, "netRev": 24954.8675934547}, {"year": 2025, "groupId": "2025-g2", "isGroupStart": false, "month": 7, "type": "VIEW", "date": "2025-07-05", "sku": "S810-ST-BL-US", "model": "S810+Bag", "priceText": "$199.95 ->$84.95", "promoPrice": 94.95, "inventory": 400.0, "qty": 378.0, "totalQty": 1799.0, "grossRev": 35891.1, "totalIncome": 35891.1, "groupTotalIncome": 170815.05, "originalFirstPayment": 40568.574375, "originalReturnsRatio": 0.0344635908838244, "originalReturnsAmount": 62.0, "originalSecondPayment": 5886.9, "originalActualRev": 124359.575625, "firstPayment": 8524.13625, "secondPayment": 1236.9361867704279, "returnsRatio": 0.0344635908838244, "returnsAmount": 62.0, "actualRev": 26130.02756322957, "netRev": 26130.02756322957}, {"year": 2025, "groupId": "2025-g2", "isGroupStart": false, "month": 7, "type": "VIEW", "date": "2025-07-05", "sku": "S810-ST-PK-US", "model": "S810+Bag", "priceText": "$199.95 ->$84.95", "promoPrice": 94.95, "inventory": 400.0, "qty": 280.0, "totalQty": 1799.0, "grossRev": 26586.0, "totalIncome": 26586.0, "groupTotalIncome": 170815.05, "originalFirstPayment": 40568.574375, "originalReturnsRatio": 0.0344635908838244, "originalReturnsAmount": 62.0, "originalSecondPayment": 5886.9, "originalActualRev": 124359.575625, "firstPayment": 6314.174999999999, "secondPayment": 916.2490272373541, "returnsRatio": 0.0344635908838244, "returnsAmount": 62.0, "actualRev": 19355.575972762646, "netRev": 19355.575972762646}, {"year": 2025, "groupId": "2025-g3", "isGroupStart": true, "month": 9, "type": "GMA", "date": "2025-09-01", "sku": "S803-ST-BK-US", "model": "S803+Bag", "priceText": "$169.95->$84.95", "promoPrice": 84.95, "inventory": 6000.0, "qty": 1715.0, "totalQty": 4403.0, "grossRev": 145689.25, "totalIncome": 145689.25, "groupTotalIncome": 374034.85, "originalFirstPayment": 88833.276875, "originalReturnsRatio": 0.0286168521462639, "originalReturnsAmount": 126.0, "originalSecondPayment": 10703.7, "originalActualRev": 274497.873125, "firstPayment": 34601.196875, "secondPayment": 4169.16772655008, "returnsRatio": 0.0286168521462639, "returnsAmount": 126.0, "actualRev": 106918.88539844993, "netRev": 106918.88539844993}, {"year": 2025, "groupId": "2025-g3", "isGroupStart": false, "month": 9, "type": "GMA", "date": "2025-09-01", "sku": "S803-ST-BL-US", "model": "S803+Bag", "priceText": "$169.95->$84.95", "promoPrice": 84.95, "inventory": 2000.0, "qty": 1411.0, "totalQty": 4403.0, "grossRev": 119864.45, "totalIncome": 119864.45, "groupTotalIncome": 374034.85, "originalFirstPayment": 88833.276875, "originalReturnsRatio": 0.0286168521462639, "originalReturnsAmount": 126.0, "originalSecondPayment": 10703.7, "originalActualRev": 274497.873125, "firstPayment": 28467.806875000002, "secondPayment": 3430.143243243244, "returnsRatio": 0.0286168521462639, "returnsAmount": 126.0, "actualRev": 87966.49988175675, "netRev": 87966.49988175675}, {"year": 2025, "groupId": "2025-g3", "isGroupStart": false, "month": 9, "type": "GMA", "date": "2025-09-01", "sku": "S803-ST-GY-US", "model": "S803+Bag", "priceText": "$169.95->$84.95", "promoPrice": 84.95, "inventory": 2000.0, "qty": 1277.0, "totalQty": 4403.0, "grossRev": 108481.15, "totalIncome": 108481.15, "groupTotalIncome": 374034.85, "originalFirstPayment": 88833.276875, "originalReturnsRatio": 0.0286168521462639, "originalReturnsAmount": 126.0, "originalSecondPayment": 10703.7, "originalActualRev": 274497.873125, "firstPayment": 25764.273124999996, "secondPayment": 3104.3890302066775, "returnsRatio": 0.0286168521462639, "returnsAmount": 126.0, "actualRev": 79612.48784479332, "netRev": 79612.48784479332}, {"year": 2025, "groupId": "2025-g4", "isGroupStart": true, "month": 9, "type": "LIVE", "date": "2025-09-05", "sku": "T511-ST-PK-US", "model": "T511+Case", "priceText": "$159.95 ->$79.95", "promoPrice": 79.95, "inventory": 1000.0, "qty": 817.0, "totalQty": 2281.0, "grossRev": 65319.15, "totalIncome": 65319.15, "groupTotalIncome": 182365.95, "originalFirstPayment": 43311.913125, "originalReturnsRatio": 0.024989039894783, "originalReturnsAmount": 57.0, "originalSecondPayment": 4557.15, "originalActualRev": 134496.886875, "firstPayment": 15513.298125, "secondPayment": 1632.2628452433141, "returnsRatio": 0.024989039894783, "returnsAmount": 57.0, "actualRev": 48173.58902975668, "netRev": 48173.58902975668}, {"year": 2025, "groupId": "2025-g4", "isGroupStart": false, "month": 9, "type": "LIVE", "date": "2025-09-05", "sku": "T511-ST-BK-US", "model": "T511+Case", "priceText": "$159.95 ->$79.95", "promoPrice": 79.95, "inventory": 6000.0, "qty": 808.0, "totalQty": 2281.0, "grossRev": 64599.6, "totalIncome": 64599.6, "groupTotalIncome": 182365.95, "originalFirstPayment": 43311.913125, "originalReturnsRatio": 0.024989039894783, "originalReturnsAmount": 57.0, "originalSecondPayment": 4557.15, "originalActualRev": 134496.886875, "firstPayment": 15342.404999999999, "secondPayment": 1614.281981587023, "returnsRatio": 0.024989039894783, "returnsAmount": 57.0, "actualRev": 47642.913018412975, "netRev": 47642.913018412975}, {"year": 2025, "groupId": "2025-g4", "isGroupStart": false, "month": 9, "type": "LIVE", "date": "2025-09-05", "sku": "T511-ST-WT-US", "model": "T511+Case", "priceText": "$159.95 ->$79.95", "promoPrice": 79.95, "inventory": 2000.0, "qty": 656.0, "totalQty": 2281.0, "grossRev": 52447.2, "totalIncome": 52447.2, "groupTotalIncome": 182365.95, "originalFirstPayment": 43311.913125, "originalReturnsRatio": 0.024989039894783, "originalReturnsAmount": 57.0, "originalSecondPayment": 4557.15, "originalActualRev": 134496.886875, "firstPayment": 12456.21, "secondPayment": 1310.6051731696623, "returnsRatio": 0.024989039894783, "returnsAmount": 57.0, "actualRev": 38680.38482683033, "netRev": 38680.38482683033}, {"year": 2025, "groupId": "2025-g5", "isGroupStart": true, "month": 10, "type": "GMA", "date": "2025-10-23", "sku": "S661-ST-GY-US", "model": "S661+Bag", "priceText": "$119.95 ->$47.99", "promoPrice": 47.99, "inventory": 7000.0, "qty": 7000.0, "totalQty": 8500.0, "grossRev": 335930.0, "totalIncome": 335930.0, "groupTotalIncome": 407915.0, "originalFirstPayment": 96879.8125, "originalReturnsRatio": 0.0311764705882353, "originalReturnsAmount": 265.0, "originalSecondPayment": 12717.35, "originalActualRev": 298317.8375, "firstPayment": 79783.375, "secondPayment": 10473.111764705882, "returnsRatio": 0.0311764705882353, "returnsAmount": 265.0, "actualRev": 245673.51323529411, "netRev": 245673.51323529411}, {"year": 2025, "groupId": "2025-g5", "isGroupStart": false, "month": 10, "type": "GMA", "date": "2025-10-23", "sku": "S661-ST-BL-US", "model": "S661+Bag", "priceText": "$119.95 ->$47.99", "promoPrice": 47.99, "inventory": 1500.0, "qty": 1500.0, "totalQty": 8500.0, "grossRev": 71985.0, "totalIncome": 71985.0, "groupTotalIncome": 407915.0, "originalFirstPayment": 96879.8125, "originalReturnsRatio": 0.0311764705882353, "originalReturnsAmount": 265.0, "originalSecondPayment": 12717.35, "originalActualRev": 298317.8375, "firstPayment": 17096.4375, "secondPayment": 2244.2382352941177, "returnsRatio": 0.0311764705882353, "returnsAmount": 265.0, "actualRev": 52644.32426470589, "netRev": 52644.32426470589}, {"year": 2025, "groupId": "2025-g6", "isGroupStart": true, "month": 11, "type": "LIVE", "date": "2025-11-20", "sku": "S810-ST-BK-US", "model": "S810+Bag", "priceText": "$199.95 ->$84.95", "promoPrice": 84.95, "inventory": 5000.0, "qty": 1081.0, "totalQty": 1391.0, "grossRev": 91830.95, "totalIncome": 91830.95, "groupTotalIncome": 118165.45, "originalFirstPayment": 28064.294375, "originalReturnsRatio": 0.0309130122214234, "originalReturnsAmount": 43.0, "originalSecondPayment": 3652.85, "originalActualRev": 86448.305625, "firstPayment": 21809.850625000003, "secondPayment": 2838.7712796549245, "returnsRatio": 0.0309130122214234, "returnsAmount": 43.0, "actualRev": 67182.32809534507, "netRev": 67182.32809534507}, {"year": 2025, "groupId": "2025-g6", "isGroupStart": false, "month": 11, "type": "LIVE", "date": "2025-11-20", "sku": "S811-MN-BK-US", "model": "S811+Bag", "priceText": "$199.95 ->$84.95", "promoPrice": 84.95, "inventory": 1000.0, "qty": 310.0, "totalQty": 1391.0, "grossRev": 26334.5, "totalIncome": 26334.5, "groupTotalIncome": 118165.45, "originalFirstPayment": 28064.294375, "originalReturnsRatio": 0.0309130122214234, "originalReturnsAmount": 43.0, "originalSecondPayment": 3652.85, "originalActualRev": 86448.305625, "firstPayment": 6254.44375, "secondPayment": 814.0787203450756, "returnsRatio": 0.0309130122214234, "returnsAmount": 43.0, "actualRev": 19265.977529654923, "netRev": 19265.977529654923}, {"year": 2025, "groupId": "2025-g7", "isGroupStart": true, "month": 11, "type": "GMA", "date": "2025-11-28", "sku": "T910-ST-BG-US", "model": "T910+Case", "priceText": "$199.95->79.95", "promoPrice": 79.95, "inventory": 9500.0, "qty": 1667.0, "totalQty": 4002.0, "grossRev": 133276.65, "totalIncome": 133276.65, "groupTotalIncome": 319959.9, "originalFirstPayment": 75990.47625, "originalReturnsRatio": 0.0229885057471264, "originalReturnsAmount": 92.0, "originalSecondPayment": 7355.4, "originalActualRev": 236614.02375, "firstPayment": 31653.204375, "secondPayment": 3063.8310344827582, "returnsRatio": 0.0229885057471264, "returnsAmount": 92.0, "actualRev": 98559.61459051723, "netRev": 98559.61459051723}, {"year": 2025, "groupId": "2025-g7", "isGroupStart": false, "month": 11, "type": "GMA", "date": "2025-11-28", "sku": "T910-ST-BK-US", "model": "T910+Case", "priceText": "$199.95->79.95", "promoPrice": 79.95, "inventory": 5500.0, "qty": 2335.0, "totalQty": 4002.0, "grossRev": 186683.25, "totalIncome": 186683.25, "groupTotalIncome": 319959.9, "originalFirstPayment": 75990.47625, "originalReturnsRatio": 0.0229885057471264, "originalReturnsAmount": 92.0, "originalSecondPayment": 7355.4, "originalActualRev": 236614.02375, "firstPayment": 44337.271875000006, "secondPayment": 4291.568965517241, "returnsRatio": 0.0229885057471264, "returnsAmount": 92.0, "actualRev": 138054.40915948275, "netRev": 138054.40915948275}, {"year": 2025, "groupId": "2025-g8", "isGroupStart": true, "month": 12, "type": "GMA", "date": "2025-12-13", "sku": "T511-ST-PK-US", "model": "T511+Case", "priceText": "$159.95 ->$69.95", "promoPrice": 69.95, "inventory": 2000.0, "qty": 1009.0, "totalQty": 3790.0, "grossRev": 70579.55, "totalIncome": 70579.55, "groupTotalIncome": 265110.5, "originalFirstPayment": 62963.74375, "originalReturnsRatio": 0.000245180783107421, "originalReturnsAmount": 65.0, "originalSecondPayment": 4546.75, "originalActualRev": 197600.00625, "firstPayment": 16762.643125, "secondPayment": 1210.467216358839, "returnsRatio": 0.000245180783107421, "returnsAmount": 65.0, "actualRev": 52606.43965864116, "netRev": 52606.43965864116}, {"year": 2025, "groupId": "2025-g8", "isGroupStart": false, "month": 12, "type": "GMA", "date": "2025-12-13", "sku": "T511-ST-BK-US", "model": "T511+Case", "priceText": "$159.95 ->$69.95", "promoPrice": 69.95, "inventory": 4000.0, "qty": 1826.0, "totalQty": 3790.0, "grossRev": 127728.7, "totalIncome": 127728.7, "groupTotalIncome": 265110.5, "originalFirstPayment": 62963.74375, "originalReturnsRatio": 0.000245180783107421, "originalReturnsAmount": 65.0, "originalSecondPayment": 4546.75, "originalActualRev": 197600.00625, "firstPayment": 30335.56625, "secondPayment": 2190.597757255937, "returnsRatio": 0.000245180783107421, "returnsAmount": 65.0, "actualRev": 95202.53599274407, "netRev": 95202.53599274407}, {"year": 2025, "groupId": "2025-g8", "isGroupStart": false, "month": 12, "type": "GMA", "date": "2025-12-13", "sku": "T511-ST-WT-US", "model": "T511+Case", "priceText": "$159.95 ->$69.95", "promoPrice": 69.95, "inventory": 2000.0, "qty": 955.0, "totalQty": 3790.0, "grossRev": 66802.25, "totalIncome": 66802.25, "groupTotalIncome": 265110.5, "originalFirstPayment": 62963.74375, "originalReturnsRatio": 0.000245180783107421, "originalReturnsAmount": 65.0, "originalSecondPayment": 4546.75, "originalActualRev": 197600.00625, "firstPayment": 15865.534375000001, "secondPayment": 1145.6850263852243, "returnsRatio": 0.000245180783107421, "returnsAmount": 65.0, "actualRev": 49791.03059861478, "netRev": 49791.03059861478}], "rows2026": [{"id": "r1", "year": 2026, "month": 1, "type": "VIEW", "startDate": "2026-01-30", "endDate": "2026-02-03", "sku": "T910-ST-BG-US", "model": "T910+Case", "price": 199.95, "promoPrice": 79.95, "beginInventory": 3000.0, "endInventory": 1837.0, "qty": 1163.0, "achRate": 0.302, "groupQty": 2416.0, "groupGross": 193159.2, "groupTotalIncome": 193159.2, "groupNet": 141972.012, "groupActualRev": 141972.012, "grossRev": 92981.85, "totalIncome": 92981.85, "firstPayment": 22083.189374999998, "secondPayment": 2557.0008750000125, "actualRev": 68341.65974999999, "netRev": 68341.65974999999, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": true, "effectivePromoPrice": 79.95}, {"id": "r2", "year": 2026, "month": 1, "type": "VIEW", "startDate": "2026-01-30", "endDate": "2026-02-03", "sku": "T910-ST-BK-US", "model": "T910+Case", "price": 199.95, "promoPrice": 79.95, "beginInventory": 5000.0, "endInventory": 3747.0, "qty": 1253.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 100177.35, "totalIncome": 100177.35, "firstPayment": 23792.120625, "secondPayment": 2754.8771250000136, "actualRev": 73630.35225, "netRev": 73630.35225, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": true, "effectivePromoPrice": 79.95}, {"id": "r3", "year": 2026, "month": 3, "type": "GMA", "startDate": "2026-03-21", "endDate": "2026-03-24", "sku": "S803-ST-BK-US", "model": "S803+Bag", "price": 169.95, "promoPrice": 84.95, "beginInventory": 2000.0, "endInventory": 1029.0, "qty": 961.0, "achRate": 0.577, "groupQty": 1731.0, "groupGross": 147048.45, "groupTotalIncome": 147048.45, "groupNet": 108080.61075, "groupActualRev": 108080.61075, "grossRev": 81636.95, "totalIncome": 81636.95, "firstPayment": 19388.775625, "secondPayment": 2245.016125000007, "actualRev": 60003.15825, "netRev": 60003.15825, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": true, "effectivePromoPrice": 84.95}, {"id": "r4", "year": 2026, "month": 3, "type": "GMA", "startDate": "2026-03-21", "endDate": "2026-03-24", "sku": "S803-ST-BL-US", "model": "S803+Bag", "price": 169.95, "promoPrice": 84.95, "beginInventory": 1000.0, "endInventory": 228.0, "qty": 770.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 65411.5, "totalIncome": 65411.5, "firstPayment": 15535.231249999997, "secondPayment": 1798.8162500000055, "actualRev": 48077.4525, "netRev": 48077.4525, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": true, "effectivePromoPrice": 84.95}, {"id": "r5", "year": 2026, "month": 4, "type": "Secret Sales", "startDate": "2026-04-04", "endDate": "2026-04-30", "sku": "S661-ST-GY-US", "model": "S661+Bag", "price": 79.95, "promoPrice": 47.99, "beginInventory": 5000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 47.99}, {"id": "r6", "year": 2026, "month": 4, "type": "Secret Sales", "startDate": "2026-04-04", "endDate": "2026-04-30", "sku": "S661-ST-BL-US", "model": "S661+Bag", "price": 79.95, "promoPrice": 47.99, "beginInventory": 3000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 47.99}, {"id": "r7", "year": 2026, "month": 4, "type": "GMA", "startDate": "2026-04-16", "endDate": "2026-04-20", "sku": "S803-ST-BK-US", "model": "S803+Bag", "price": 169.95, "promoPrice": 84.95, "beginInventory": 4000.0, "endInventory": 3392.0, "qty": 608.0, "achRate": 0.2274, "groupQty": 1137.0, "groupGross": 96588.15, "groupTotalIncome": 96588.15, "groupNet": 70992.29025, "groupActualRev": 70992.29025, "grossRev": 51649.6, "totalIncome": 51649.6, "firstPayment": 12266.779999999999, "secondPayment": 1420.3639999999948, "actualRev": 37962.456000000006, "netRev": 37962.456000000006, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": true, "effectivePromoPrice": 84.95}, {"id": "r8", "year": 2026, "month": 4, "type": "GMA", "startDate": "2026-04-16", "endDate": "2026-04-20", "sku": "S803-MN-BK-US", "model": "S803+Bag", "price": 169.95, "promoPrice": 84.95, "beginInventory": 1000.0, "endInventory": 471.0, "qty": 529.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 44938.55, "totalIncome": 44938.55, "firstPayment": 10672.905625000001, "secondPayment": 1235.8101249999957, "actualRev": 33029.83425000001, "netRev": 33029.83425000001, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": true, "effectivePromoPrice": 84.95}, {"id": "r9", "year": 2026, "month": 5, "type": "GMA", "startDate": "2026-05-25", "endDate": "2026-05-26", "sku": "S661-ST-GY-US", "model": "S661+Bag", "price": 79.95, "promoPrice": 47.99, "beginInventory": 5000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 47.99}, {"id": "r10", "year": 2026, "month": 5, "type": "GMA", "startDate": "2026-05-25", "endDate": "2026-05-26", "sku": "S661-ST-BL-US", "model": "S661+Bag", "price": 79.95, "promoPrice": 47.99, "beginInventory": 3000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 47.99}, {"id": "r11", "year": 2026, "month": 7, "type": "", "startDate": "", "endDate": "", "sku": "S700-ST-BK-US", "model": "S700+Bag", "price": 149.95, "promoPrice": 79.95, "beginInventory": 1500.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 79.95}, {"id": "r12", "year": 2026, "month": 8, "type": "", "startDate": "", "endDate": "", "sku": "T910-ST-BG-US", "model": "T910+Case", "price": 199.95, "promoPrice": 74.95, "beginInventory": 3000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 74.95}, {"id": "r13", "year": 2026, "month": 8, "type": "", "startDate": "", "endDate": "", "sku": "T910-ST-BK-US", "model": "T910+Case", "price": 199.95, "promoPrice": 74.95, "beginInventory": 5000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 74.95}, {"id": "r14", "year": 2026, "month": 9, "type": "", "startDate": "", "endDate": "", "sku": "T920-ST-BG-US", "model": "T920+Case", "price": 0.0, "promoPrice": 0.0, "beginInventory": 1000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 78.531}, {"id": "r15", "year": 2026, "month": 9, "type": "", "startDate": "", "endDate": "", "sku": "T920-ST-BK-US", "model": "T920+Case", "price": 0.0, "promoPrice": 0.0, "beginInventory": 1000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 78.531}, {"id": "r16", "year": 2026, "month": 10, "type": "", "startDate": "", "endDate": "", "sku": "S803-ST-BK-US", "model": "S803+Bag", "price": 169.95, "promoPrice": 84.95, "beginInventory": 8000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 84.95}, {"id": "r17", "year": 2026, "month": 10, "type": "", "startDate": "", "endDate": "", "sku": "S803-ST-BL-US", "model": "S803+Bag", "price": 169.95, "promoPrice": 84.95, "beginInventory": 4000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 84.95}, {"id": "r18", "year": 2026, "month": 11, "type": "", "startDate": "", "endDate": "", "sku": "T910-ST-BG-US", "model": "T910+Case", "price": 199.95, "promoPrice": 74.95, "beginInventory": 3000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 74.95}, {"id": "r19", "year": 2026, "month": 11, "type": "", "startDate": "", "endDate": "", "sku": "T910-ST-BK-US", "model": "T910+Case", "price": 199.95, "promoPrice": 74.95, "beginInventory": 5000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 74.95}, {"id": "r20", "year": 2026, "month": 12, "type": "", "startDate": "", "endDate": "", "sku": "E310-ST-BK-US", "model": "E310+Case", "price": 179.95, "promoPrice": 99.95, "beginInventory": 5000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 99.95}, {"id": "r21", "year": 2026, "month": 12, "type": "", "startDate": "", "endDate": "", "sku": "E310-ST-BK-US", "model": "E310+Case", "price": 179.95, "promoPrice": 99.95, "beginInventory": 3000.0, "endInventory": 0.0, "qty": 0.0, "achRate": 0.0, "groupQty": 0.0, "groupGross": 0.0, "groupTotalIncome": 0.0, "groupNet": 0.0, "groupActualRev": 0.0, "grossRev": 0.0, "totalIncome": 0.0, "firstPayment": 0.0, "secondPayment": 0.0, "actualRev": 0.0, "netRev": 0.0, "forecastQty": 0.0, "forecastTotalIncome": 0.0, "forecastFirstPayment": 0.0, "forecastSecondPayment": 0.0, "forecastActualRev": 0.0, "forecastNet": 0.0, "allocationWeight": 0.0, "isActual": false, "effectivePromoPrice": 99.95}], "inventory2026": [{"month": 1, "date": "2026-01-30", "sku": "T910-ST-BG-US", "model": "T910+Case", "originalInventory": 1836.0, "transferInventory": 8000.0, "totalInventory": 0.0}, {"month": 1, "date": "2026-01-30", "sku": "T910-ST-BK-US", "model": "T910+Case", "originalInventory": 3747.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 3, "date": "2026-03-21", "sku": "S803-ST-BK-US", "model": "S803+Bag", "originalInventory": 2000.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 3, "date": "2026-03-21", "sku": "S803-ST-BL-US", "model": "S803+Bag", "originalInventory": 1000.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 3, "date": "2026-03-21", "sku": "S803-ST-GY-US", "model": "S803+Bag", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T511-ST-PK-US", "model": "T511+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T511-ST-BK-US", "model": "T511+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T511-ST-WT-US", "model": "T511+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "S661-ST-GY-US", "model": "S661+Bag", "originalInventory": 5000.0, "transferInventory": 0.0, "totalInventory": 5000.0}, {"month": 0, "date": "", "sku": "S661-ST-BL-US", "model": "S661+Bag", "originalInventory": 3000.0, "transferInventory": 0.0, "totalInventory": 3000.0}, {"month": 0, "date": "", "sku": "S661-ST-WT-US", "model": "S661+Bag", "originalInventory": 0.0, "transferInventory": 1700.0, "totalInventory": 1700.0}, {"month": 0, "date": "", "sku": "S810-ST-BK-US", "model": "S810+Bag", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "S811-MN-BK-US", "model": "S811+Bag", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T910-ST-BG-US", "model": "T910+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T910-ST-BK-US", "model": "T910+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T511-ST-PK-US", "model": "T511+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T511-ST-BK-US", "model": "T511+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}, {"month": 0, "date": "", "sku": "T511-ST-WT-US", "model": "T511+Case", "originalInventory": 0.0, "transferInventory": 0.0, "totalInventory": 0.0}], "monthly": {"1": {"month": 1, "label": "Jan", "baselineIncome": 0, "rawTarget": 0.0, "actualIncome": 193159.2, "expectation": 265366.48125, "manual": false}, "2": {"month": 2, "label": "Feb", "baselineIncome": 0, "rawTarget": 0.0, "actualIncome": 0, "expectation": 265366.48125, "manual": false}, "3": {"month": 3, "label": "Mar", "baselineIncome": 0, "rawTarget": 0.0, "actualIncome": 147048.45, "expectation": 265366.48125, "manual": false}, "4": {"month": 4, "label": "Apr", "baselineIncome": 0, "rawTarget": 0.0, "actualIncome": 96588.15, "expectation": 265366.48125, "manual": false}, "5": {"month": 5, "label": "May", "baselineIncome": 284565.15, "rawTarget": 426847.72500000003, "actualIncome": 0.0, "expectation": 265366.48125, "manual": false}, "6": {"month": 6, "label": "Jun", "baselineIncome": 0, "rawTarget": 0.0, "actualIncome": 0, "expectation": 265366.48125, "manual": false}, "7": {"month": 7, "label": "Jul", "baselineIncome": 170815.05, "rawTarget": 256222.57499999998, "actualIncome": 0.0, "expectation": 265366.48125, "manual": false}, "8": {"month": 8, "label": "Aug", "baselineIncome": 0, "rawTarget": 0.0, "actualIncome": 0.0, "expectation": 265366.48125, "manual": false}, "9": {"month": 9, "label": "Sep", "baselineIncome": 556400.8, "rawTarget": 834601.2000000001, "actualIncome": 0.0, "expectation": 265366.48125, "manual": false}, "10": {"month": 10, "label": "Oct", "baselineIncome": 407915.0, "rawTarget": 611872.5, "actualIncome": 0.0, "expectation": 265366.48125, "manual": false}, "11": {"month": 11, "label": "Nov", "baselineIncome": 438125.35000000003, "rawTarget": 657188.025, "actualIncome": 0.0, "expectation": 265366.48125, "manual": false}, "12": {"month": 12, "label": "Dec", "baselineIncome": 265110.5, "rawTarget": 397665.75, "actualIncome": 0.0, "expectation": 265366.48125, "manual": false}}, "skuTargets": {}, "skuIncomeTargets": {}, "metrics": {"annualBaseline": 2122931.85, "annualTarget": 3184397.7750000004, "actualIncome": 436795.8, "remainingTarget": 2747601.9750000006, "netRatio": 0.7354191259719429, "firstPaymentRate": 0.2375, "secondPaymentRate": 0.027500000000000066, "profitRate": 0.7349999999999999, "avgPromoPrice": 78.531, "baselineByMonth": {"1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0, "5": 284565.15, "6": 0.0, "7": 170815.05, "8": 0.0, "9": 556400.8, "10": 407915.0, "11": 438125.35000000003, "12": 265110.5}}};
+    const STORAGE_KEY = "gma-2026-dashboard-v6";
+    let state = loadState();
+    let activeView = "dashboard";
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function normalizeState(nextState) {
+      nextState.monthly = nextState.monthly || {};
+      nextState.skuTargets = nextState.skuTargets || {};
+      nextState.skuIncomeTargets = nextState.skuIncomeTargets || {};
+      nextState.rows2025 = nextState.rows2025 || [];
+      nextState.rows2026 = nextState.rows2026 || [];
+      nextState.inventory2026 = nextState.inventory2026 || [];
+      nextState.source = nextState.source || clone(INITIAL_STATE.source || {});
+      return nextState;
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return normalizeState(JSON.parse(saved));
+      } catch (error) {}
+      return normalizeState(clone(INITIAL_STATE));
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      flash("已保存");
+    }
+
+    function flash(text) {
+      const btn = document.getElementById("saveBtn");
+      const old = btn.textContent;
+      btn.textContent = text;
+      window.setTimeout(() => btn.textContent = old, 850);
+    }
+
+    function money(value) {
+      const number = Number(value || 0);
+      return "$" + number.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    }
+
+    function num(value, digits = 0) {
+      return Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: digits });
+    }
+
+    function pct(value, digits = 1) {
+      return (Number(value || 0) * 100).toFixed(digits) + "%";
+    }
+
+    function byMonth(rows, field, filter = () => true) {
+      const result = Array.from({ length: 13 }, () => 0);
+      rows.forEach(row => {
+        const month = Number(row.month || 0);
+        if (month >= 1 && month <= 12 && filter(row)) result[month] += Number(row[field] || 0);
+      });
+      return result;
+    }
+
+    function monthly2025Income() {
+      const result = Array.from({ length: 13 }, () => 0);
+      state.rows2025.forEach(row => {
+        const month = Number(row.month || 0);
+        if (month >= 1 && month <= 12 && row.isGroupStart) result[month] += Number(row.groupTotalIncome || 0);
+      });
+      return result;
+    }
+
+    function baselineTotal() {
+      return state.rows2025.reduce((sum, row) => sum + Number(row.netRev || 0), 0);
+    }
+
+    function baselineIncomeTotal() {
+      const originalTotal = state.rows2025
+        .filter(row => row.isGroupStart)
+        .reduce((sum, row) => sum + Number(row.groupTotalIncome || 0), 0);
+      return originalTotal || state.rows2025.reduce((sum, row) => sum + Number(row.totalIncome || row.grossRev || 0), 0);
+    }
+
+    function rawTargetTotal() {
+      return baselineIncomeTotal() * (1 + Number(state.targetGrowth || 0));
+    }
+
+    function targetTotal() {
+      const monthly = Array.from({ length: 12 }, (_, index) => monthlyExpectation(index + 1)).reduce((sum, value) => sum + value, 0);
+      return monthly || rawTargetTotal();
+    }
+
+    function actualTotal() {
+      return actualIncomeTotal();
+    }
+
+    function actualQtyTotal() {
+      return state.rows2026.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+    }
+
+    function actualIncomeTotal() {
+      return state.rows2026.reduce((sum, row) => sum + Number(row.totalIncome || row.grossRev || 0), 0);
+    }
+
+    function actualPaymentTotal() {
+      return state.rows2026.reduce((sum, row) => sum + Number(row.firstPayment || 0) + Number(row.secondPayment || 0), 0);
+    }
+
+    function actualProfitTotal() {
+      return state.rows2026.reduce((sum, row) => sum + Number(row.actualRev || row.netRev || 0), 0);
+    }
+
+    function forecastRowsTotal() {
+      return state.rows2026.reduce((sum, row) => sum + Number(row.forecastNet || 0), 0);
+    }
+
+    function monthlyExpectation(month) {
+      const entry = state.monthly[String(month)] || {};
+      if (entry.manual) return Number(entry.expectation || 0);
+      if (entry.expectation !== undefined) return Number(entry.expectation || 0);
+      return rawTargetTotal() / 12;
+    }
+
+    function defaultSkuTarget(row) {
+      return Number(row.qty25 || 0) * (1 + Number(state.targetGrowth || 0));
+    }
+
+    function defaultSkuIncomeTarget(row) {
+      return Number(row.income25 || 0) * (1 + Number(state.targetGrowth || 0));
+    }
+
+    function skuTargetQty(row) {
+      const saved = state.skuTargets ? state.skuTargets[row.sku] : undefined;
+      if (saved === undefined || saved === null || saved === "") return defaultSkuTarget(row);
+      return Number(saved || 0);
+    }
+
+    function skuTargetIncome(row) {
+      const saved = state.skuIncomeTargets ? state.skuIncomeTargets[row.sku] : undefined;
+      if (saved === undefined || saved === null || saved === "") return defaultSkuIncomeTarget(row);
+      return Number(saved || 0);
+    }
+
+    function setSkuTarget(sku, value) {
+      state.skuTargets = state.skuTargets || {};
+      state.skuTargets[sku] = Math.max(Number(value || 0), 0);
+    }
+
+    function setSkuIncomeTarget(sku, value) {
+      state.skuIncomeTargets = state.skuIncomeTargets || {};
+      state.skuIncomeTargets[sku] = Math.max(Number(value || 0), 0);
+    }
+
+    function projectedTotal() {
+      return actualIncomeTotal();
+    }
+
+    function monthlyRows() {
+      const base = monthly2025Income();
+      const actualByMonth = byMonth(state.rows2026, "totalIncome");
+      const qtyActual = byMonth(state.rows2026, "qty");
+      const incomeActual = byMonth(state.rows2026, "totalIncome");
+      const firstActual = byMonth(state.rows2026, "firstPayment");
+      const secondActual = byMonth(state.rows2026, "secondPayment");
+      const growth = Number(state.targetGrowth || 0);
+      return Array.from({ length: 12 }, (_, index) => {
+        const month = index + 1;
+        const target = monthlyExpectation(month);
+        return {
+          month,
+          label: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][index],
+          baseline: base[month],
+          rawTarget: base[month] * (1 + growth),
+          actual: actualByMonth[month],
+          qty: qtyActual[month],
+          totalIncome: incomeActual[month],
+          firstPayment: firstActual[month],
+          secondPayment: secondActual[month],
+          expectation: target,
+          breakdown: target,
+          gap: target - actualByMonth[month],
+          manual: Boolean(state.monthly[String(month)] && state.monthly[String(month)].manual),
+        };
+      });
+    }
+
+    function skuRows() {
+      const map = new Map();
+      function get(sku, model) {
+        if (!map.has(sku)) map.set(sku, {
+          sku, model: model || "", qty25: 0, income25: 0, first25: 0, second25: 0, net25: 0,
+          qty26: 0, income26: 0, first26: 0, second26: 0, actual26: 0, forecast26: 0, inventory: 0
+        });
+        const item = map.get(sku);
+        if (!item.model && model) item.model = model;
+        return item;
+      }
+      state.rows2025.forEach(row => {
+        const item = get(row.sku, row.model);
+        item.qty25 += Number(row.qty || 0);
+        item.income25 += Number(row.totalIncome || row.grossRev || 0);
+        item.first25 += Number(row.firstPayment || 0);
+        item.second25 += Number(row.secondPayment || 0);
+        item.net25 += Number(row.netRev || 0);
+      });
+      state.rows2026.forEach(row => {
+        const item = get(row.sku, row.model);
+        item.qty26 += Number(row.qty || 0);
+        item.income26 += Number(row.totalIncome || 0);
+        item.first26 += Number(row.firstPayment || 0);
+        item.second26 += Number(row.secondPayment || 0);
+        item.actual26 += Number(row.netRev || 0);
+        item.inventory += Number(row.beginInventory || 0);
+      });
+      return Array.from(map.values()).map(item => {
+        item.net26 = item.actual26;
+        item.qtyGrowth = item.qty25 ? item.qty26 / item.qty25 - 1 : null;
+        item.incomeGrowth = item.income25 ? item.income26 / item.income25 - 1 : null;
+        item.qtyTarget = skuTargetQty(item);
+        item.qtyGap = Math.max(item.qtyTarget - item.qty26, 0);
+        item.incomeTarget = skuTargetIncome(item);
+        item.incomeGap = Math.max(item.incomeTarget - item.income26, 0);
+        item.qtyCompletion = item.qty26 / Math.max(item.qtyTarget, 1);
+        item.incomeCompletion = item.income26 / Math.max(item.incomeTarget, 1);
+        item.gap = item.income26 - item.income25 * (1 + Number(state.targetGrowth || 0));
+        return item;
+      }).sort((a, b) => b.qty26 - a.qty26);
+    }
+
+    function underTargetSkuRows() {
+      return skuRows()
+        .filter(row => (row.qtyTarget > 0 && row.qtyGap > 0) || (row.incomeTarget > 0 && row.incomeGap > 0))
+        .sort((a, b) => (b.incomeGap - a.incomeGap) || (b.qtyGap - a.qtyGap));
+    }
+
+    function averagePromoPrice() {
+      const prices = [
+        ...state.rows2026.map(row => Number(row.promoPrice || 0)).filter(Boolean),
+        ...state.rows2025.map(row => Number(row.promoPrice || 0)).filter(Boolean)
+      ];
+      return prices.length ? prices.reduce((sum, value) => sum + value, 0) / prices.length : 80;
+    }
+
+    function typeRows() {
+      const map = new Map();
+      state.rows2026.forEach(row => {
+        const type = row.type || "未填写";
+        if (!map.has(type)) map.set(type, { type, income: 0, net: 0, qty: 0 });
+        const item = map.get(type);
+        item.income += Number(row.totalIncome || 0);
+        item.net += Number(row.netRev || 0);
+        item.qty += Number(row.qty || 0);
+      });
+      return Array.from(map.values()).filter(row => row.income > 0 || row.qty > 0).sort((a, b) => b.income - a.income);
+    }
+
+    function currentMonthConclusion() {
+      const month = Number((state.source && state.source.currentMonth) || (new Date().getMonth() + 1));
+      const row = monthlyRows().find(item => item.month === month);
+      if (!row) return "暂无本月目标数据，请先确认月度目标表。";
+      const completion = row.actual / Math.max(row.breakdown, 1);
+      const status = completion >= 1 ? "已达成目标" : (completion >= .8 ? "接近目标" : "未达目标");
+      const monthRows = state.rows2026.filter(item => Number(item.month || 0) === month);
+      const skuMap = new Map();
+      const typeMap = new Map();
+      monthRows.forEach(item => {
+        const qty = Number(item.qty || 0);
+        const income = Number(item.totalIncome || item.grossRev || 0);
+        if (qty > 0 || income > 0) {
+          const skuKey = item.sku || "未填写 SKU";
+          if (!skuMap.has(skuKey)) skuMap.set(skuKey, { sku: skuKey, qty: 0, income: 0 });
+          skuMap.get(skuKey).qty += qty;
+          skuMap.get(skuKey).income += income;
+          const typeKey = item.type || "未填写类型";
+          if (!typeMap.has(typeKey)) typeMap.set(typeKey, { type: typeKey, qty: 0, income: 0 });
+          typeMap.get(typeKey).qty += qty;
+          typeMap.get(typeKey).income += income;
+        }
+      });
+      const topSku = Array.from(skuMap.values()).sort((a, b) => b.qty - a.qty)[0];
+      const topType = Array.from(typeMap.values()).sort((a, b) => b.income - a.income)[0];
+      const gapText = row.gap > 0 ? `还需补齐 ${money(row.gap)}` : `已超出目标 ${money(Math.abs(row.gap))}`;
+      if (row.actual <= 0) {
+        return `${month}月尚未录入 Total Income，本月营收目标为 ${money(row.breakdown)}，建议先确认本月活动与 SKU 数据是否完整。`;
+      }
+      return `${month}月当前 Total Income 为 ${money(row.actual)}，目标 ${money(row.breakdown)}，完成率 ${pct(completion, 1)}，状态为${status}；销量第一 SKU 是 ${topSku ? topSku.sku : "-"}（${topSku ? num(topSku.qty) : 0} units），主要活动类型是 ${topType ? topType.type : "-"}，${gapText}。`;
+    }
+
+    function recalculate2025Allocations() {
+      const groups = new Map();
+      state.rows2025.forEach(row => {
+        const key = row.groupId || `${row.month}-${row.type}-${row.date}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(row);
+      });
+      groups.forEach(group => {
+        const head = group[0] || {};
+        const groupIncome = Number(head.groupTotalIncome || 0);
+        const groupFirst = Number(head.originalFirstPayment || 0);
+        const groupSecond = Number(head.originalSecondPayment || 0);
+        const groupActual = Number(head.originalActualRev || 0);
+        const grossSum = group.reduce((sum, row) => sum + Number(row.grossRev || 0), 0);
+        group.forEach(row => {
+          const weight = groupIncome ? Number(row.grossRev || 0) / groupIncome : (grossSum ? Number(row.grossRev || 0) / grossSum : 0);
+          row.totalIncome = Number(row.grossRev || 0);
+          row.firstPayment = groupFirst * weight;
+          row.secondPayment = groupSecond * weight;
+          row.actualRev = groupActual * weight;
+          row.netRev = row.actualRev;
+        });
+      });
+    }
+
+    function renderAll() {
+      renderSource();
+      renderKpis();
+      renderMonthlyConclusion();
+      renderMonthlyChart();
+      renderProgress();
+      renderWaterfallChart();
+      renderParetoChart("paretoChart");
+      renderTypeChart();
+      renderQuantityBars("skuBars", skuRows().filter(r => r.qty26 > 0).slice(0, 10).map(r => [r.sku, r.qty26]));
+      if (activeView === "monthly") renderMonthlyTable();
+      if (activeView === "sku") {
+        renderParetoChart("skuChart");
+        renderSkuTable();
+        renderSkuGapTable();
+      }
+      if (activeView === "data2025") renderData2025Table();
+      if (activeView === "data") renderDataTable();
+      if (activeView === "inventory") renderInventoryTable();
+    }
+
+    function renderSource() {
+      document.getElementById("sourceInfo").textContent = `源文件：${state.source.file} ｜ 生成：${state.source.generatedAt}`;
+    }
+
+    function renderKpis() {
+      const target = targetTotal();
+      const actual = actualTotal();
+      const gap = target - actual;
+      const topSku = skuRows().find(row => row.qty26 > 0);
+      document.getElementById("kpiBaselineIncome").textContent = money(baselineIncomeTotal());
+      document.getElementById("kpiTarget").textContent = money(target);
+      document.getElementById("kpiQty").textContent = num(actualQtyTotal());
+      document.getElementById("kpiIncome").textContent = money(actualIncomeTotal());
+      document.getElementById("kpiGap").textContent = money(Math.max(gap, 0));
+      document.getElementById("kpiGap").className = "kpi-value " + (gap <= 0 ? "positive" : "negative");
+      document.getElementById("incomeSub").textContent = `完成率 ${pct(actual / Math.max(target, 1), 1)}`;
+      document.getElementById("gapSub").textContent = gap <= 0 ? "已达成营收目标" : "需要后续活动补齐";
+      document.getElementById("kpiTopSku").textContent = topSku ? topSku.sku : "-";
+      document.getElementById("topSkuSub").textContent = topSku ? `${num(topSku.qty26)} units` : "暂无销量";
+      document.getElementById("growthText").textContent = pct(state.targetGrowth, 0);
+      const growthInput = document.getElementById("growthInput");
+      if (growthInput) growthInput.value = Math.round(Number(state.targetGrowth || 0) * 100);
+    }
+
+    function renderMonthlyConclusion() {
+      const el = document.getElementById("monthlyConclusion");
+      if (el) el.textContent = currentMonthConclusion();
+    }
+
+    function svgEl(tag, attrs = {}, text = "") {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      if (text !== "") el.textContent = text;
+      return el;
+    }
+
+    function renderMonthlyChart() {
+      const container = document.getElementById("monthlyChart");
+      const rows = monthlyRows();
+      const width = container.clientWidth || 900;
+      const height = 320;
+      const margin = { top: 18, right: 18, bottom: 44, left: 72 };
+      const innerW = width - margin.left - margin.right;
+      const innerH = height - margin.top - margin.bottom;
+      const max = Math.max(...rows.flatMap(r => [r.baseline, r.breakdown, r.actual]), 1);
+      const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, role: "img" });
+      svg.appendChild(svgEl("rect", { x: 0, y: 0, width, height, fill: "transparent" }));
+      for (let i = 0; i <= 4; i += 1) {
+        const y = margin.top + innerH - innerH * i / 4;
+        svg.appendChild(svgEl("line", { x1: margin.left, y1: y, x2: width - margin.right, y2: y, stroke: "#e5ebe1", "stroke-width": 1 }));
+        svg.appendChild(svgEl("text", { x: margin.left - 10, y: y + 4, "text-anchor": "end", fill: "#68707a", "font-size": 11 }, money(max * i / 4)));
+      }
+      const groupW = innerW / rows.length;
+      const barW = Math.max(5, Math.min(16, groupW / 5));
+      const colors = ["#aeb9a9", "#c57b1c", "#127f8c"];
+      rows.forEach((row, idx) => {
+        const x0 = margin.left + idx * groupW + groupW / 2;
+        [row.baseline, row.breakdown, row.actual].forEach((value, series) => {
+          const barH = innerH * value / max;
+          const x = x0 + (series - 1) * (barW + 3) - barW / 2;
+          const y = margin.top + innerH - barH;
+          svg.appendChild(svgEl("rect", { x, y, width: barW, height: Math.max(0, barH), rx: 2, fill: colors[series] }));
+        });
+        svg.appendChild(svgEl("text", { x: x0, y: height - 18, "text-anchor": "middle", fill: "#59616a", "font-size": 11 }, row.label));
+      });
+      const legend = [["2025 营收", colors[0]], ["2026 目标", colors[1]], ["2026 已录", colors[2]]];
+      legend.forEach((item, idx) => {
+        const x = margin.left + idx * 94;
+        svg.appendChild(svgEl("rect", { x, y: height - 10, width: 10, height: 10, fill: item[1], rx: 2 }));
+        svg.appendChild(svgEl("text", { x: x + 15, y: height - 1, fill: "#59616a", "font-size": 11 }, item[0]));
+      });
+      container.replaceChildren(svg);
+    }
+
+    function renderProgress() {
+      const target = targetTotal();
+      const actual = actualTotal();
+      const completion = Math.min(actual / Math.max(target, 1), 1.2);
+      document.getElementById("progressBar").style.width = Math.min(completion * 100, 100) + "%";
+      document.getElementById("progressLabel").textContent = pct(actual / Math.max(target, 1), 1);
+      const remaining = Math.max(target - actual, 0);
+      const activeMonths = monthlyRows().filter(r => r.month >= state.source.currentMonth && r.gap > 0);
+      const avgNeed = remaining / Math.max(activeMonths.length, 1);
+      const topSku = skuRows().find(row => row.qty26 > 0);
+      const topType = typeRows()[0];
+      const topSkuGap = underTargetSkuRows()[0];
+      document.getElementById("summaryLines").innerHTML = [
+        ["年度营收目标", money(target)],
+        ["已录营收", money(actual)],
+        ["剩余营收缺口", money(remaining)],
+        ["剩余目标月均", money(avgNeed)],
+        ["已录 QTY", num(actualQtyTotal())],
+        ["已录 First + Second Payment", money(actualPaymentTotal())],
+      ].map(([label, value]) => `<div class="line-item"><span>${label}</span><strong>${value}</strong></div>`).join("");
+      const insights = [
+        actual >= target
+          ? `已录营收已覆盖全年目标，当前超出 ${money(actual - target)}。`
+          : `全年营收目标还差 ${money(remaining)}，按剩余目标月份平均每月需贡献 ${money(avgNeed)}。`,
+        topSku ? `销量最高 SKU 是 ${topSku.sku}，已录 ${num(topSku.qty26)} units，贡献营收 ${money(topSku.income26)}。` : "当前 2026 尚无已录销量。",
+        topType ? `活动类型里 ${topType.type} 营收最高，贡献 ${money(topType.income)}，销量 ${num(topType.qty)} units。` : "活动类型暂无可用数据。",
+        topSkuGap ? `SKU 双目标缺口最大的是 ${topSkuGap.sku}：QTY 缺口 ${num(topSkuGap.qtyGap)}，Total Income 缺口 ${money(topSkuGap.incomeGap)}。` : "当前 SKU 双目标均已达成或未设置目标。",
+        `辅助利润指标：已录 Actual Rev 为 ${money(actualProfitTotal())}，营收利润率 ${pct(actualProfitTotal() / Math.max(actualIncomeTotal(), 1), 1)}。`,
+        `当前目标口径为 Total Income；未发生活动不做自动预测，只在月度目标里保留营收拆解。`,
+      ];
+      document.getElementById("insightList").innerHTML = insights
+        .map((text, index) => `<div class="insight ${index === 0 && actual < target ? "risk" : ""}">${text}</div>`)
+        .join("");
+    }
+
+    function renderBars(id, rows, colorName) {
+      const max = Math.max(...rows.map(row => row[1]), 1);
+      const color = colorName === "green" ? "var(--green)" : "var(--teal)";
+      const html = rows.length ? rows.map(row => {
+        const width = Math.max(2, row[1] / max * 100);
+        return `<div class="bar-row"><div class="bar-label" title="${row[0]}">${row[0]}</div><div class="bar-track"><div class="bar-fill" style="width:${width}%;background:${color}"></div></div><div>${money(row[1])}</div></div>`;
+      }).join("") : `<div class="empty-state">暂无数据</div>`;
+      document.getElementById(id).innerHTML = html;
+    }
+
+    function renderQuantityBars(id, rows) {
+      const max = Math.max(...rows.map(row => row[1]), 1);
+      const html = rows.length ? rows.map(row => {
+        const width = Math.max(2, row[1] / max * 100);
+        return `<div class="bar-row"><div class="bar-label" title="${row[0]}">${row[0]}</div><div class="bar-track"><div class="bar-fill" style="width:${width}%;background:var(--teal)"></div></div><div>${num(row[1])}</div></div>`;
+      }).join("") : `<div class="empty-state">暂无销量数据</div>`;
+      document.getElementById(id).innerHTML = html;
+    }
+
+    function renderWaterfallChart() {
+      const container = document.getElementById("waterfallChart");
+      if (!container) return;
+      const baseline = baselineIncomeTotal();
+      const growth = rawTargetTotal() - baseline;
+      const target = targetTotal();
+      const actual = actualTotal();
+      const gap = Math.max(target - actual, 0);
+      const rows = [
+        { label: "2025", value: baseline, color: "#aeb9a9" },
+        { label: "+50%", value: growth, color: "#c57b1c" },
+        { label: "目标", value: target, color: "#3766a6" },
+        { label: "已录", value: actual, color: "#127f8c" },
+        { label: "缺口", value: gap, color: "#b4475c" },
+      ];
+      const width = container.clientWidth || 680;
+      const height = 320;
+      const margin = { top: 22, right: 18, bottom: 48, left: 72 };
+      const innerW = width - margin.left - margin.right;
+      const innerH = height - margin.top - margin.bottom;
+      const max = Math.max(...rows.map(r => r.value), 1);
+      const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}` });
+      for (let i = 0; i <= 4; i += 1) {
+        const y = margin.top + innerH - innerH * i / 4;
+        svg.appendChild(svgEl("line", { x1: margin.left, y1: y, x2: width - margin.right, y2: y, stroke: "#e5ebe1" }));
+        svg.appendChild(svgEl("text", { x: margin.left - 8, y: y + 4, "text-anchor": "end", fill: "#68707a", "font-size": 11 }, money(max * i / 4)));
+      }
+      const slot = innerW / rows.length;
+      const barW = Math.min(54, slot * .56);
+      rows.forEach((row, index) => {
+        const x = margin.left + index * slot + (slot - barW) / 2;
+        const h = innerH * row.value / max;
+        const y = margin.top + innerH - h;
+        svg.appendChild(svgEl("rect", { x, y, width: barW, height: h, fill: row.color, rx: 3 }));
+        svg.appendChild(svgEl("text", { x: x + barW / 2, y: y - 6, "text-anchor": "middle", fill: "#334047", "font-size": 11 }, money(row.value)));
+        svg.appendChild(svgEl("text", { x: x + barW / 2, y: height - 18, "text-anchor": "middle", fill: "#59616a", "font-size": 12 }, row.label));
+      });
+      container.replaceChildren(svg);
+    }
+
+    function renderParetoChart(id) {
+      const container = document.getElementById(id);
+      if (!container) return;
+      const allRows = skuRows().filter(row => row.qty26 > 0);
+      const rows = allRows.slice(0, 12);
+      const totalQty = allRows.reduce((sum, row) => sum + row.qty26, 0) || 1;
+      const width = container.clientWidth || 680;
+      const height = 390;
+      const denseLabels = rows.length > 7;
+      const margin = { top: 40, right: 78, bottom: denseLabels ? 122 : 96, left: 64 };
+      const innerW = width - margin.left - margin.right;
+      const innerH = height - margin.top - margin.bottom;
+      const maxQty = Math.max(...rows.map(row => row.qty26), 1);
+      const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}` });
+      const halo = { stroke: "#fff", "stroke-width": 4, "paint-order": "stroke", "stroke-linejoin": "round" };
+      for (let i = 0; i <= 4; i += 1) {
+        const y = margin.top + innerH - innerH * i / 4;
+        svg.appendChild(svgEl("line", { x1: margin.left, y1: y, x2: width - margin.right, y2: y, stroke: "#e5ebe1" }));
+        svg.appendChild(svgEl("text", { x: margin.left - 8, y: y + 4, "text-anchor": "end", fill: "#68707a", "font-size": 10 }, num(maxQty * i / 4)));
+      }
+      [0.5, 0.8, 1].forEach(value => {
+        const y = margin.top + innerH - innerH * value;
+        svg.appendChild(svgEl("text", { x: width - margin.right + 8, y: y + 4, fill: value === 0.8 ? "#c57b1c" : "#68707a", "font-size": 10 }, pct(value, 0)));
+        if (value === 0.8) svg.appendChild(svgEl("line", { x1: margin.left, y1: y, x2: width - margin.right, y2: y, stroke: "#c57b1c", "stroke-dasharray": "4 4", opacity: .55 }));
+      });
+      const slot = innerW / Math.max(rows.length, 1);
+      const barW = Math.max(8, Math.min(28, slot * .55));
+      let cumulative = 0;
+      const points = [];
+      rows.forEach((row, index) => {
+        const x = margin.left + index * slot + slot / 2;
+        const h = innerH * row.qty26 / maxQty;
+        const y = margin.top + innerH - h;
+        const barLabelY = Math.max(margin.top - 10, y - 8);
+        svg.appendChild(svgEl("rect", { x: x - barW / 2, y, width: barW, height: h, fill: "#127f8c", rx: 2 }));
+        svg.appendChild(svgEl("text", { x, y: barLabelY, "text-anchor": "middle", fill: "#334047", "font-size": 10, ...halo }, num(row.qty26)));
+        if (denseLabels) {
+          const labelY = height - 58;
+          svg.appendChild(svgEl("text", { x, y: labelY, "text-anchor": "end", transform: `rotate(-35 ${x} ${labelY})`, fill: "#59616a", "font-size": 10, ...halo }, row.sku));
+        } else {
+          const parts = row.sku.split("-");
+          const firstLine = parts.length > 2 ? parts.slice(0, 2).join("-") : row.sku;
+          const secondLine = parts.length > 2 ? parts.slice(2).join("-") : "";
+          const label = svgEl("text", { x, y: height - 58, "text-anchor": "middle", fill: "#59616a", "font-size": 10, ...halo });
+          label.appendChild(svgEl("tspan", { x, dy: 0 }, firstLine));
+          if (secondLine) label.appendChild(svgEl("tspan", { x, dy: 13 }, secondLine));
+          svg.appendChild(label);
+        }
+        cumulative += row.qty26;
+        const cumulativePct = cumulative / totalQty;
+        const py = margin.top + innerH - innerH * cumulative / totalQty;
+        points.push([x, py, cumulativePct, barLabelY]);
+      });
+      if (points.length) {
+        svg.appendChild(svgEl("polyline", { points: points.map(p => `${p[0]},${p[1]}`).join(" "), fill: "none", stroke: "#c57b1c", "stroke-width": 2 }));
+        points.forEach((point, index) => {
+          svg.appendChild(svgEl("circle", { cx: point[0], cy: point[1], r: 3, fill: "#c57b1c" }));
+          let labelY = point[1] - 18;
+          if (labelY < margin.top + 10) labelY = point[1] + 20;
+          if (Math.abs(labelY - point[3]) < 18) labelY = point[1] + 20;
+          svg.appendChild(svgEl("text", { x: point[0], y: labelY, "text-anchor": "middle", fill: "#9a5b12", "font-size": 10, ...halo }, pct(point[2], 0)));
+        });
+      }
+      svg.appendChild(svgEl("text", { x: width / 2, y: height - 13, "text-anchor": "middle", fill: "#68707a", "font-size": 11, ...halo }, "柱：QTY（柱顶数字）｜ 线：累计销量占比（百分比标签）"));
+      container.replaceChildren(svg);
+    }
+
+    function renderTypeChart() {
+      const container = document.getElementById("typeChart");
+      if (!container) return;
+      const rows = typeRows();
+      const width = container.clientWidth || 680;
+      const height = 320;
+      const margin = { top: 22, right: 70, bottom: 44, left: 92 };
+      const innerW = width - margin.left - margin.right;
+      const rowH = (height - margin.top - margin.bottom) / Math.max(rows.length, 1);
+      const maxIncome = Math.max(...rows.map(row => row.income), 1);
+      const maxQty = Math.max(...rows.map(row => row.qty), 1);
+      const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}` });
+      rows.forEach((row, index) => {
+        const y = margin.top + index * rowH + rowH * .22;
+        svg.appendChild(svgEl("text", { x: margin.left - 8, y: y + 12, "text-anchor": "end", fill: "#334047", "font-size": 12 }, row.type));
+        svg.appendChild(svgEl("rect", { x: margin.left, y, width: innerW * row.income / maxIncome, height: rowH * .22, fill: "#127f8c", rx: 2 }));
+        svg.appendChild(svgEl("rect", { x: margin.left, y: y + rowH * .32, width: innerW * row.qty / maxQty, height: rowH * .22, fill: "#c57b1c", rx: 2 }));
+        svg.appendChild(svgEl("text", { x: width - margin.right + 8, y: y + 12, fill: "#59616a", "font-size": 11 }, money(row.income)));
+      });
+      svg.appendChild(svgEl("text", { x: margin.left, y: height - 10, fill: "#68707a", "font-size": 11 }, "绿色：Total Income ｜ 黄色：QTY 相对量级"));
+      container.replaceChildren(svg);
+    }
+
+    function renderMonthlyTable() {
+      const rows = monthlyRows();
+      const table = document.getElementById("monthlyTable");
+      table.innerHTML = `
+        <thead><tr>
+          <th class="left">月份</th><th>2025 Total Income</th><th>2026 营收目标</th><th>2026 已录营收</th><th>营收缺口</th><th>完成率</th><th>QTY</th><th>First Payment</th><th>Second Payment</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td class="left">${row.label}</td>
+              <td>${money(row.baseline)}</td>
+              <td><input class="num-input" type="number" step="100" value="${Math.round(row.expectation)}" data-month="${row.month}" data-month-field="expectation"></td>
+              <td>${money(row.actual)}</td>
+              <td class="${row.gap <= 0 ? "positive" : "negative"}">${money(Math.max(row.gap, 0))}</td>
+              <td class="${row.actual / Math.max(row.breakdown, 1) < .8 ? "risk-cell" : "positive"}">${pct(row.actual / Math.max(row.breakdown, 1), 1)}</td>
+              <td>${num(row.qty)}</td>
+              <td>${money(row.firstPayment)}</td>
+              <td>${money(row.secondPayment)}</td>
+            </tr>
+          `).join("")}
+        </tbody>`;
+      table.querySelectorAll("input[data-month-field]").forEach(input => {
+        input.addEventListener("change", () => {
+          const month = input.dataset.month;
+          state.monthly[month] = state.monthly[month] || {};
+          state.monthly[month].expectation = Number(input.value || 0);
+          state.monthly[month].manual = true;
+          renderAll();
+        });
+      });
+    }
+
+    function renderSkuChart() {
+      const top = skuRows().slice(0, 12);
+      const container = document.getElementById("skuChart");
+      const width = container.clientWidth || 620;
+      const height = 320;
+      const margin = { top: 12, right: 18, bottom: 28, left: 132 };
+      const innerW = width - margin.left - margin.right;
+      const rowH = (height - margin.top - margin.bottom) / Math.max(top.length, 1);
+      const max = Math.max(...top.flatMap(r => [r.net25, r.net26]), 1);
+      const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}` });
+      top.forEach((row, idx) => {
+        const y = margin.top + idx * rowH + rowH * .18;
+        svg.appendChild(svgEl("text", { x: margin.left - 8, y: y + rowH * .44, "text-anchor": "end", fill: "#3d444c", "font-size": 11 }, row.sku));
+        const w25 = innerW * row.net25 / max;
+        const w26 = innerW * row.net26 / max;
+        svg.appendChild(svgEl("rect", { x: margin.left, y, width: w25, height: Math.max(5, rowH * .22), fill: "#aeb9a9", rx: 2 }));
+        svg.appendChild(svgEl("rect", { x: margin.left, y: y + rowH * .32, width: w26, height: Math.max(5, rowH * .22), fill: "#127f8c", rx: 2 }));
+      });
+      svg.appendChild(svgEl("text", { x: margin.left, y: height - 6, fill: "#68707a", "font-size": 11 }, "灰色：2025 ｜ 绿色：2026 实际+预测"));
+      container.replaceChildren(svg);
+    }
+
+    function renderSkuTable() {
+      const rows = skuRows();
+      const table = document.getElementById("skuTable");
+      table.innerHTML = `
+        <thead><tr>
+          <th class="left">SKU</th><th class="left">Model</th><th>2026 QTY</th><th>2025 QTY</th><th>目标 QTY</th><th>QTY 缺口</th><th>QTY 完成率</th><th>2026 Total Income</th><th>2025 Total Income</th><th>目标 Total Income</th><th>营收缺口</th><th>营收完成率</th><th>销量同比</th><th>营收同比</th><th>计划库存</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td class="left">${row.sku}</td>
+              <td class="left">${row.model}</td>
+              <td>${num(row.qty26)}</td>
+              <td>${num(row.qty25)}</td>
+              <td><input class="num-input" type="number" step="1" min="0" value="${round0(row.qtyTarget)}" data-sku-target="${escapeAttr(row.sku)}"></td>
+              <td class="${row.qtyGap > 0 ? "negative" : "positive"}">${num(row.qtyGap)}</td>
+              <td class="${row.qtyCompletion < .8 ? "risk-cell" : "positive"}">${pct(row.qtyCompletion, 1)}</td>
+              <td>${money(row.income26)}</td>
+              <td>${money(row.income25)}</td>
+              <td><input class="num-input" type="number" step="100" min="0" value="${round0(row.incomeTarget)}" data-sku-income-target="${escapeAttr(row.sku)}"></td>
+              <td class="${row.incomeGap > 0 ? "negative" : "positive"}">${money(row.incomeGap)}</td>
+              <td class="${row.incomeCompletion < .8 ? "risk-cell" : "positive"}">${pct(row.incomeCompletion, 1)}</td>
+              <td class="${row.qtyGrowth === null || row.qtyGrowth >= 0 ? "positive" : "negative"}">${row.qtyGrowth === null ? "NEW" : pct(row.qtyGrowth, 1)}</td>
+              <td class="${row.incomeGrowth === null || row.incomeGrowth >= 0 ? "positive" : "negative"}">${row.incomeGrowth === null ? "NEW" : pct(row.incomeGrowth, 1)}</td>
+              <td>${num(row.inventory)}</td>
+            </tr>
+          `).join("")}
+        </tbody>`;
+      bindSkuTargetInputs(table);
+    }
+
+    function renderSkuGapTable() {
+      const rows = underTargetSkuRows();
+      const table = document.getElementById("skuGapTable");
+      table.innerHTML = `
+        <thead><tr>
+          <th class="left">SKU</th><th class="left">Model</th><th>2025 QTY</th><th>目标 QTY</th><th>2026 QTY</th><th>QTY 缺口</th><th>QTY 完成率</th><th>2025 Total Income</th><th>目标 Total Income</th><th>2026 Total Income</th><th>营收缺口</th><th>营收完成率</th>
+        </tr></thead>
+        <tbody>
+          ${rows.length ? rows.map(row => `
+            <tr>
+              <td class="left">${row.sku}</td>
+              <td class="left">${row.model}</td>
+              <td>${num(row.qty25)}</td>
+              <td><input class="num-input" type="number" step="1" min="0" value="${round0(row.qtyTarget)}" data-sku-target="${escapeAttr(row.sku)}"></td>
+              <td>${num(row.qty26)}</td>
+              <td class="negative">${num(row.qtyGap)}</td>
+              <td class="${row.qtyCompletion < .8 ? "risk-cell" : "positive"}">${pct(row.qtyCompletion, 1)}</td>
+              <td>${money(row.income25)}</td>
+              <td><input class="num-input" type="number" step="100" min="0" value="${round0(row.incomeTarget)}" data-sku-income-target="${escapeAttr(row.sku)}"></td>
+              <td>${money(row.income26)}</td>
+              <td class="negative">${money(row.incomeGap)}</td>
+              <td class="${row.incomeCompletion < .8 ? "risk-cell" : "positive"}">${pct(row.incomeCompletion, 1)}</td>
+            </tr>
+          `).join("") : `<tr><td class="left" colspan="12">当前没有低于 SKU 双目标的项目。</td></tr>`}
+        </tbody>`;
+      bindSkuTargetInputs(table);
+    }
+
+    function bindSkuTargetInputs(table) {
+      table.querySelectorAll("input[data-sku-target]").forEach(input => {
+        input.addEventListener("change", () => {
+          setSkuTarget(input.dataset.skuTarget, input.value);
+          renderAll();
+        });
+      });
+      table.querySelectorAll("input[data-sku-income-target]").forEach(input => {
+        input.addEventListener("change", () => {
+          setSkuIncomeTarget(input.dataset.skuIncomeTarget, input.value);
+          renderAll();
+        });
+      });
+    }
+
+    function renderData2025Table() {
+      const table = document.getElementById("data2025Table");
+      table.innerHTML = `
+        <thead><tr>
+          <th>年份</th><th>月</th><th class="left">类型</th><th class="left">日期</th><th class="left">SKU</th><th class="left">Model</th><th class="left">Price</th><th>Promo Price</th><th>Inventory</th><th>QTY</th><th>Total QTY</th><th>Rev</th><th>2025 Total Income</th><th>First Payment to GMA</th><th>Second Payment to GMA</th><th>Actual Rev</th><th>Returns Ratio</th><th>Returns Amount</th>
+        </tr></thead>
+        <tbody>
+          ${state.rows2025.map((row, index) => `
+            <tr>
+              <td><input class="num-input" type="number" step="1" value="${row.year || 2025}" data-2025-index="${index}" data-field="year"></td>
+              <td><input class="num-input" type="number" step="1" value="${row.month || ""}" data-2025-index="${index}" data-field="month"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.type || "")}" data-2025-index="${index}" data-field="type"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.date || "")}" data-2025-index="${index}" data-field="date"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.sku || "")}" data-2025-index="${index}" data-field="sku"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.model || "")}" data-2025-index="${index}" data-field="model"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.priceText || "")}" data-2025-index="${index}" data-field="priceText"></td>
+              <td><input class="num-input" type="number" step="0.01" value="${round2(row.promoPrice)}" data-2025-index="${index}" data-field="promoPrice"></td>
+              <td><input class="num-input" type="number" step="1" value="${round0(row.inventory)}" data-2025-index="${index}" data-field="inventory"></td>
+              <td><input class="num-input" type="number" step="1" value="${round0(row.qty)}" data-2025-index="${index}" data-field="qty"></td>
+              <td><input class="num-input" type="number" step="1" value="${row.totalQty ? round0(row.totalQty) : ""}" data-2025-index="${index}" data-field="totalQty"></td>
+              <td><input class="num-input" type="number" step="100" value="${round0(row.grossRev)}" data-2025-index="${index}" data-field="grossRev"></td>
+              <td><input class="num-input" type="number" step="100" value="${row.groupTotalIncome ? round0(row.groupTotalIncome) : ""}" data-2025-index="${index}" data-field="groupTotalIncome"></td>
+              <td><input class="num-input" type="number" step="100" value="${row.originalFirstPayment ? round0(row.originalFirstPayment) : ""}" data-2025-index="${index}" data-field="originalFirstPayment"></td>
+              <td><input class="num-input" type="number" step="100" value="${row.originalSecondPayment ? round0(row.originalSecondPayment) : ""}" data-2025-index="${index}" data-field="originalSecondPayment"></td>
+              <td><input class="num-input" type="number" step="100" value="${row.originalActualRev ? round0(row.originalActualRev) : ""}" data-2025-index="${index}" data-field="originalActualRev"></td>
+              <td><input class="num-input" type="number" step="0.0001" value="${row.originalReturnsRatio ? Number(row.originalReturnsRatio || 0) : ""}" data-2025-index="${index}" data-field="originalReturnsRatio"></td>
+              <td><input class="num-input" type="number" step="1" value="${row.originalReturnsAmount ? round0(row.originalReturnsAmount) : ""}" data-2025-index="${index}" data-field="originalReturnsAmount"></td>
+            </tr>
+          `).join("")}
+        </tbody>`;
+      table.querySelectorAll("input").forEach(input => {
+        input.addEventListener("change", () => {
+          const row = state.rows2025[Number(input.dataset["2025Index"])];
+          const field = input.dataset.field;
+          if (["type", "date", "sku", "model", "priceText"].includes(field)) row[field] = input.value;
+          else row[field] = Number(input.value || 0);
+          const groupFields = ["totalQty", "groupTotalIncome", "originalFirstPayment", "originalSecondPayment", "originalActualRev", "originalReturnsRatio", "originalReturnsAmount"];
+          if (groupFields.includes(field)) {
+            state.rows2025
+              .filter(item => item.groupId === row.groupId)
+              .forEach(item => item[field] = row[field]);
+          }
+          recalculate2025Allocations();
+          renderAll();
+        });
+      });
+    }
+
+    function renderDataTable() {
+      const table = document.getElementById("dataTable");
+      table.innerHTML = `
+        <thead><tr>
+          <th>状态</th><th>月</th><th class="left">类型</th><th class="left">SKU</th><th class="left">Model</th><th>Promo</th><th>期初库存</th><th>期末库存</th><th>QTY</th><th>Total Income</th><th>First Payment</th><th>Second Payment</th><th>Actual Rev</th>
+        </tr></thead>
+        <tbody>
+          ${state.rows2026.map((row, index) => `
+            <tr>
+              <td class="left"><span class="pill ${Number(row.netRev || 0) ? "" : "plan"}"><span class="status-dot ${Number(row.netRev || 0) ? "" : "plan"}"></span>${Number(row.netRev || 0) ? "实际" : "计划"}</span></td>
+              <td><input class="num-input" type="number" step="1" value="${row.month || ""}" data-index="${index}" data-field="month"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.type || "")}" data-index="${index}" data-field="type"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.sku || "")}" data-index="${index}" data-field="sku"></td>
+              <td class="left"><input class="text-input" value="${escapeAttr(row.model || "")}" data-index="${index}" data-field="model"></td>
+              <td><input class="num-input" type="number" step="0.01" value="${round2(row.promoPrice)}" data-index="${index}" data-field="promoPrice"></td>
+              <td><input class="num-input" type="number" step="1" value="${round0(row.beginInventory)}" data-index="${index}" data-field="beginInventory"></td>
+              <td><input class="num-input" type="number" step="1" value="${round0(row.endInventory)}" data-index="${index}" data-field="endInventory"></td>
+              <td><input class="num-input" type="number" step="1" value="${round0(row.qty)}" data-index="${index}" data-field="qty"></td>
+              <td><input class="num-input" type="number" step="100" value="${round0(row.totalIncome || row.grossRev)}" data-index="${index}" data-field="totalIncome"></td>
+              <td><input class="num-input" type="number" step="100" value="${round0(row.firstPayment)}" data-index="${index}" data-field="firstPayment"></td>
+              <td><input class="num-input" type="number" step="100" value="${round0(row.secondPayment)}" data-index="${index}" data-field="secondPayment"></td>
+              <td><input class="num-input" type="number" step="100" value="${round0(row.actualRev || row.netRev)}" data-index="${index}" data-field="actualRev"></td>
+            </tr>
+          `).join("")}
+        </tbody>`;
+      table.querySelectorAll("input").forEach(input => {
+        input.addEventListener("change", () => {
+          const row = state.rows2026[Number(input.dataset.index)];
+          const field = input.dataset.field;
+          if (["type", "sku", "model"].includes(field)) row[field] = input.value;
+          else row[field] = Number(input.value || 0);
+          if (field === "actualRev") row.netRev = row.actualRev;
+          if (field === "totalIncome") row.grossRev = row.totalIncome;
+          const month = String(row.month || "");
+          if (state.monthly[month] && !state.monthly[month].manual) {
+            state.monthly[month].expectation = undefined;
+          }
+          renderAll();
+        });
+      });
+    }
+
+    function renderInventoryTable() {
+      const table = document.getElementById("inventoryTable");
+      table.innerHTML = `
+        <thead><tr><th>月</th><th class="left">日期</th><th class="left">SKU</th><th class="left">Model</th><th>原有计划库存</th><th>其他渠道划拨</th><th>总计库存</th></tr></thead>
+        <tbody>
+          ${state.inventory2026.map(row => `
+            <tr>
+              <td>${row.month || ""}</td>
+              <td class="left">${row.date || ""}</td>
+              <td class="left">${row.sku}</td>
+              <td class="left">${row.model}</td>
+              <td>${num(row.originalInventory)}</td>
+              <td>${num(row.transferInventory)}</td>
+              <td>${num(row.totalInventory)}</td>
+            </tr>
+          `).join("")}
+        </tbody>`;
+    }
+
+    function round0(value) { return Math.round(Number(value || 0)); }
+    function round2(value) { return Math.round(Number(value || 0) * 100) / 100; }
+    function escapeAttr(value) {
+      return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    }
+
+    function redistributeTargets() {
+      const averageTarget = rawTargetTotal() / 12;
+      for (let month = 1; month <= 12; month += 1) {
+        state.monthly[String(month)] = state.monthly[String(month)] || {};
+        state.monthly[String(month)].expectation = averageTarget;
+        state.monthly[String(month)].manual = false;
+      }
+      renderAll();
+    }
+
+    function xmlEscape(value) {
+      return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+    }
+
+    function excelCell(value) {
+      const isNumber = typeof value === "number" && Number.isFinite(value);
+      const type = isNumber ? "Number" : "String";
+      return `<Cell><Data ss:Type="${type}">${xmlEscape(isNumber ? Math.round(value * 100) / 100 : value)}</Data></Cell>`;
+    }
+
+    function excelSheet(name, rows) {
+      return `<Worksheet ss:Name="${xmlEscape(name).slice(0, 31)}"><Table>${rows.map(row => `<Row>${row.map(excelCell).join("")}</Row>`).join("")}</Table></Worksheet>`;
+    }
+
+    function exportExcel() {
+      const monthly = monthlyRows();
+      const sku = skuRows();
+      const gaps = underTargetSkuRows();
+      const sheets = [
+        excelSheet("Summary", [
+          ["Metric", "Value"],
+          ["2025 Total Income", baselineIncomeTotal()],
+          ["2026 Revenue Target", targetTotal()],
+          ["2026 Actual Total Income", actualIncomeTotal()],
+          ["Revenue Gap", Math.max(targetTotal() - actualIncomeTotal(), 0)],
+          ["2026 QTY", actualQtyTotal()],
+          ["2026 Actual Rev", actualProfitTotal()],
+          ["Profit Margin", actualProfitTotal() / Math.max(actualIncomeTotal(), 1)],
+          ["Current Month Conclusion", currentMonthConclusion()],
+        ]),
+        excelSheet("Monthly Targets", [
+          ["Month", "2025 Total Income", "2026 Target", "2026 Actual Income", "Gap", "Completion", "QTY", "First Payment", "Second Payment"],
+          ...monthly.map(row => [row.label, row.baseline, row.breakdown, row.actual, Math.max(row.gap, 0), row.actual / Math.max(row.breakdown, 1), row.qty, row.firstPayment, row.secondPayment]),
+        ]),
+        excelSheet("SKU Analysis", [
+          ["SKU", "Model", "2026 QTY", "2025 QTY", "Target QTY", "Gap QTY", "QTY Completion", "2026 Total Income", "2025 Total Income", "Target Total Income", "Income Gap", "Income Completion", "QTY Growth", "Income Growth", "Inventory"],
+          ...sku.map(row => [row.sku, row.model, row.qty26, row.qty25, row.qtyTarget, row.qtyGap, row.qtyCompletion, row.income26, row.income25, row.incomeTarget, row.incomeGap, row.incomeCompletion, row.qtyGrowth ?? "NEW", row.incomeGrowth ?? "NEW", row.inventory]),
+        ]),
+        excelSheet("Under Target SKU", [
+          ["SKU", "Model", "2025 QTY", "Target QTY", "2026 QTY", "Gap QTY", "QTY Completion", "2025 Total Income", "Target Total Income", "2026 Total Income", "Income Gap", "Income Completion"],
+          ...gaps.map(row => [row.sku, row.model, row.qty25, row.qtyTarget, row.qty26, row.qtyGap, row.qtyCompletion, row.income25, row.incomeTarget, row.income26, row.incomeGap, row.incomeCompletion]),
+        ]),
+        excelSheet("2025 Data", [
+          ["Year", "Month", "Type", "Date", "SKU", "Model", "Price", "Promo Price", "Inventory", "QTY", "Total QTY", "Rev", "Total Income", "First Payment", "Second Payment", "Actual Rev", "Returns Ratio", "Returns Amount"],
+          ...state.rows2025.map(row => [row.year, row.month, row.type, row.date, row.sku, row.model, row.priceText, row.promoPrice, row.inventory, row.qty, row.totalQty, row.grossRev, row.groupTotalIncome, row.originalFirstPayment, row.originalSecondPayment, row.originalActualRev, row.originalReturnsRatio, row.originalReturnsAmount]),
+        ]),
+        excelSheet("2026 Data", [
+          ["Year", "Month", "Type", "SKU", "Model", "Promo", "Begin Inventory", "End Inventory", "QTY", "Total Income", "First Payment", "Second Payment", "Actual Rev"],
+          ...state.rows2026.map(row => [row.year, row.month, row.type, row.sku, row.model, row.promoPrice, row.beginInventory, row.endInventory, row.qty, row.totalIncome || row.grossRev, row.firstPayment, row.secondPayment, row.actualRev || row.netRev]),
+        ]),
+        excelSheet("Inventory", [
+          ["Month", "Date", "SKU", "Model", "Original Inventory", "Transfer Inventory", "Total Inventory"],
+          ...state.inventory2026.map(row => [row.month, row.date, row.sku, row.model, row.originalInventory, row.transferInventory, row.totalInventory]),
+        ]),
+      ];
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">${sheets.join("")}</Workbook>`;
+      const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "GMA_2026_销售预测看板.xls";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        activeView = tab.dataset.view;
+        document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active", item === tab));
+        document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === activeView));
+        renderAll();
+      });
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", saveState);
+    document.getElementById("allocateBtn").addEventListener("click", redistributeTargets);
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      if (confirm("恢复到 Excel 初始数据？")) {
+        state = normalizeState(clone(INITIAL_STATE));
+        localStorage.removeItem(STORAGE_KEY);
+        renderAll();
+      }
+    });
+    document.getElementById("exportBtn").addEventListener("click", exportExcel);
+    document.getElementById("importFile").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          state = normalizeState(JSON.parse(reader.result));
+          saveState();
+          renderAll();
+        } catch (error) {
+          alert("导入失败，文件不是可用的 JSON 数据。");
+        }
+      };
+      reader.readAsText(file);
+    });
+    document.getElementById("growthInput").addEventListener("change", event => {
+      state.targetGrowth = Number(event.target.value || 0) / 100;
+      redistributeTargets();
+    });
+
+    window.addEventListener("resize", () => {
+      renderMonthlyChart();
+      if (activeView === "sku") renderParetoChart("skuChart");
+    });
+    window.addEventListener("beforeunload", () => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (error) {}
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>
