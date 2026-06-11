@@ -709,6 +709,40 @@ def html_template(initial_state):
       font: inherit;
       background: #fff;
     }}
+    .filter-row {{
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 190px 160px minmax(180px, .8fr);
+      gap: 10px;
+      align-items: center;
+      padding: 12px 16px;
+    }}
+    .filter-row input, .filter-row select {{
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+    }}
+    .check-control {{
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }}
+    .check-control input {{
+      width: 16px;
+      height: 16px;
+      accent-color: var(--green);
+    }}
+    .filter-summary {{
+      text-align: right;
+      color: var(--muted);
+      font-size: 12px;
+    }}
     .two-col {{
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }}
@@ -765,6 +799,8 @@ def html_template(initial_state):
     @media (max-width: 720px) {{
       header, main {{ padding-left: 14px; padding-right: 14px; }}
       .form-row {{ grid-template-columns: 1fr; }}
+      .filter-row {{ grid-template-columns: 1fr; }}
+      .filter-summary {{ text-align: left; }}
       .kpi-value {{ font-size: 20px; }}
       table {{ min-width: 760px; }}
     }}
@@ -871,6 +907,21 @@ def html_template(initial_state):
     </section>
 
     <section id="sku" class="view">
+      <div class="panel" style="margin-bottom:14px;">
+        <div class="filter-row">
+          <input id="skuSearchInput" type="search" placeholder="搜索 SKU / Model">
+          <select id="skuSortSelect">
+            <option value="incomeGap">按营收缺口</option>
+            <option value="qtyGap">按 QTY 缺口</option>
+            <option value="qty26">按 2026 QTY</option>
+            <option value="income26">按 2026 Total Income</option>
+            <option value="incomeCompletion">按营收完成率</option>
+            <option value="qtyCompletion">按 QTY 完成率</option>
+          </select>
+          <label class="check-control"><input id="skuOnlyGapInput" type="checkbox">只看未达双目标</label>
+          <div id="skuFilterSummary" class="filter-summary"></div>
+        </div>
+      </div>
       <div class="grid sku-grid">
         <div class="panel">
           <div class="panel-head"><h2>SKU 销量 Pareto</h2><span class="small-note">2026 销量排名与累计占比</span></div>
@@ -930,6 +981,7 @@ def html_template(initial_state):
     const STORAGE_KEY = "gma-2026-dashboard-v6";
     let state = loadState();
     let activeView = "dashboard";
+    const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
 
     function clone(value) {{
       return JSON.parse(JSON.stringify(value));
@@ -1160,6 +1212,53 @@ def html_template(initial_state):
         .sort((a, b) => (b.incomeGap - a.incomeGap) || (b.qtyGap - a.qtyGap));
     }}
 
+    function sortedSkuRows(rows) {{
+      const sortKey = skuFilters.sort || "incomeGap";
+      const directions = {{
+        incomeCompletion: 1,
+        qtyCompletion: 1,
+      }};
+      return [...rows].sort((a, b) => {{
+        if (sortKey === "sku") return String(a.sku || "").localeCompare(String(b.sku || ""));
+        const direction = directions[sortKey] || -1;
+        const av = Number(a[sortKey] || 0);
+        const bv = Number(b[sortKey] || 0);
+        if (av === bv) return (b.incomeGap - a.incomeGap) || (b.qtyGap - a.qtyGap) || String(a.sku || "").localeCompare(String(b.sku || ""));
+        return direction * (av - bv);
+      }});
+    }}
+
+    function matchesSkuFilter(row) {{
+      const query = String(skuFilters.search || "").trim().toLowerCase();
+      if (!query) return true;
+      return `${{row.sku || ""}} ${{row.model || ""}}`.toLowerCase().includes(query);
+    }}
+
+    function visibleSkuRows() {{
+      const rows = skuRows().filter(matchesSkuFilter);
+      const scoped = skuFilters.onlyGap ? rows.filter(row => row.qtyGap > 0 || row.incomeGap > 0) : rows;
+      return sortedSkuRows(scoped);
+    }}
+
+    function visibleUnderTargetSkuRows() {{
+      return sortedSkuRows(underTargetSkuRows().filter(matchesSkuFilter));
+    }}
+
+    function renderSkuFilterSummary() {{
+      const el = document.getElementById("skuFilterSummary");
+      if (!el) return;
+      const searchInput = document.getElementById("skuSearchInput");
+      const sortSelect = document.getElementById("skuSortSelect");
+      const onlyGapInput = document.getElementById("skuOnlyGapInput");
+      if (searchInput && document.activeElement !== searchInput) searchInput.value = skuFilters.search;
+      if (sortSelect) sortSelect.value = skuFilters.sort;
+      if (onlyGapInput) onlyGapInput.checked = skuFilters.onlyGap;
+      const all = skuRows();
+      const matched = all.filter(matchesSkuFilter);
+      const under = matched.filter(row => row.qtyGap > 0 || row.incomeGap > 0);
+      el.textContent = `显示 ${{skuFilters.onlyGap ? under.length : matched.length}} / ${{all.length}} SKU，未达双目标 ${{under.length}}`;
+    }}
+
     function averagePromoPrice() {{
       const prices = [
         ...state.rows2026.map(row => Number(row.promoPrice || 0)).filter(Boolean),
@@ -1250,6 +1349,7 @@ def html_template(initial_state):
       renderQuantityBars("skuBars", skuRows().filter(r => r.qty26 > 0).slice(0, 10).map(r => [r.sku, r.qty26]));
       if (activeView === "monthly") renderMonthlyTable();
       if (activeView === "sku") {{
+        renderSkuFilterSummary();
         renderParetoChart("skuChart");
         renderSkuTable();
         renderSkuGapTable();
@@ -1430,7 +1530,10 @@ def html_template(initial_state):
     function renderParetoChart(id) {{
       const container = document.getElementById(id);
       if (!container) return;
-      const allRows = skuRows().filter(row => row.qty26 > 0);
+      const sourceRows = id === "skuChart"
+        ? skuRows().filter(row => matchesSkuFilter(row) && (!skuFilters.onlyGap || row.qtyGap > 0 || row.incomeGap > 0))
+        : skuRows();
+      const allRows = sourceRows.filter(row => row.qty26 > 0).sort((a, b) => b.qty26 - a.qty26);
       const rows = allRows.slice(0, 12);
       const totalQty = allRows.reduce((sum, row) => sum + row.qty26, 0) || 1;
       const width = container.clientWidth || 680;
@@ -1573,7 +1676,7 @@ def html_template(initial_state):
     }}
 
     function renderSkuTable() {{
-      const rows = skuRows();
+      const rows = visibleSkuRows();
       const table = document.getElementById("skuTable");
       table.innerHTML = `
         <thead><tr>
@@ -1604,7 +1707,7 @@ def html_template(initial_state):
     }}
 
     function renderSkuGapTable() {{
-      const rows = underTargetSkuRows();
+      const rows = visibleUnderTargetSkuRows();
       const table = document.getElementById("skuGapTable");
       table.innerHTML = `
         <thead><tr>
@@ -1879,6 +1982,32 @@ def html_template(initial_state):
     document.getElementById("growthInput").addEventListener("change", event => {{
       state.targetGrowth = Number(event.target.value || 0) / 100;
       redistributeTargets();
+    }});
+    document.getElementById("skuSearchInput").addEventListener("input", event => {{
+      skuFilters.search = event.target.value;
+      if (activeView === "sku") {{
+        renderSkuFilterSummary();
+        renderParetoChart("skuChart");
+        renderSkuTable();
+        renderSkuGapTable();
+      }}
+    }});
+    document.getElementById("skuSortSelect").addEventListener("change", event => {{
+      skuFilters.sort = event.target.value;
+      if (activeView === "sku") {{
+        renderSkuFilterSummary();
+        renderSkuTable();
+        renderSkuGapTable();
+      }}
+    }});
+    document.getElementById("skuOnlyGapInput").addEventListener("change", event => {{
+      skuFilters.onlyGap = event.target.checked;
+      if (activeView === "sku") {{
+        renderSkuFilterSummary();
+        renderParetoChart("skuChart");
+        renderSkuTable();
+        renderSkuGapTable();
+      }}
     }});
 
     window.addEventListener("resize", () => {{

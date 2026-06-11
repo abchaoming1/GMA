@@ -10,6 +10,6 @@ This repository contains a local, editable HTML dashboard for reviewing GMA 2025
 ## Notes
 
 - The source Excel workbook is intentionally not included because it contains sales and planning data.
+- `index.html` includes the dashboard's embedded initial dataset so the page can run without a backend.
 - The dashboard stores browser edits in `localStorage`.
 - Use the in-page `Export Excel` button to export the edited dashboard data.
-
