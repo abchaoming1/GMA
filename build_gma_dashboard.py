@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 
 
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-CURRENT_MONTH = 4
+CURRENT_MONTH = datetime.now().month
 FIRST_PAYMENT_RATE = 0.2375
 
 
@@ -163,17 +163,40 @@ def parse_2026(rows):
         if not any(v not in (None, "") for v in row):
             continue
         month = int(to_float(row[2])) if len(row) > 2 and to_float(row[2]) else 0
-        sku = to_text(row[5]) if len(row) > 5 else ""
+        uses_new_layout = len(row) > 18 and bool(to_text(row[3])) and bool(to_text(row[8]))
+        if uses_new_layout:
+            status = to_text(row[3])
+            start_date = to_text(row[4])
+            end_date = to_text(row[5])
+            sku = to_text(row[8])
+            model = to_text(row[7])
+            price = to_float(row[10])
+            promo = parse_price(row[11])
+            begin_inventory = to_float(row[12])
+            end_inventory = to_float(row[13])
+            qty = to_float(row[14])
+            ach_rate = to_float(row[15])
+            total_qty = to_float(row[16])
+            group_total_income = to_float(row[17])
+            group_actual_rev = to_float(row[18])
+        else:
+            status = ""
+            start_date = to_text(row[3]) if len(row) > 3 else ""
+            end_date = to_text(row[4]) if len(row) > 4 else ""
+            sku = to_text(row[5]) if len(row) > 5 else ""
+            model = to_text(row[6]) if len(row) > 6 else ""
+            price = to_float(row[7]) if len(row) > 7 else 0.0
+            promo = parse_price(row[8] if len(row) > 8 else "")
+            begin_inventory = to_float(row[9]) if len(row) > 9 else 0.0
+            end_inventory = to_float(row[10]) if len(row) > 10 else 0.0
+            qty = to_float(row[11]) if len(row) > 11 else 0.0
+            ach_rate = to_float(row[12]) if len(row) > 12 else 0.0
+            total_qty = to_float(row[13]) if len(row) > 13 else 0.0
+            group_total_income = to_float(row[14]) if len(row) > 14 else 0.0
+            group_actual_rev = to_float(row[15]) if len(row) > 15 else 0.0
         if not sku:
             continue
         type_name = to_text(row[1]) if len(row) > 1 else ""
-        start_date = to_text(row[3]) if len(row) > 3 else ""
-        end_date = to_text(row[4]) if len(row) > 4 else ""
-        promo = parse_price(row[8] if len(row) > 8 else "")
-        qty = to_float(row[11]) if len(row) > 11 else 0.0
-        total_qty = to_float(row[13]) if len(row) > 13 else 0.0
-        group_total_income = to_float(row[14]) if len(row) > 14 else 0.0
-        group_actual_rev = to_float(row[15]) if len(row) > 15 else 0.0
 
         starts_actual_group = bool(group_actual_rev or total_qty or group_total_income)
         if starts_actual_group:
@@ -186,16 +209,17 @@ def parse_2026(rows):
             "year": 2026,
             "month": month,
             "type": type_name,
+            "status": status,
             "startDate": start_date,
             "endDate": end_date,
             "sku": sku,
-            "model": to_text(row[6]) if len(row) > 6 else "",
-            "price": to_float(row[7]) if len(row) > 7 else 0.0,
+            "model": model,
+            "price": price,
             "promoPrice": promo,
-            "beginInventory": to_float(row[9]) if len(row) > 9 else 0.0,
-            "endInventory": to_float(row[10]) if len(row) > 10 else 0.0,
+            "beginInventory": begin_inventory,
+            "endInventory": end_inventory,
             "qty": qty,
-            "achRate": to_float(row[12]) if len(row) > 12 else 0.0,
+            "achRate": ach_rate,
             "groupQty": total_qty,
             "groupGross": group_total_income,
             "groupTotalIncome": group_total_income,
@@ -355,7 +379,7 @@ def build_state(workbook_path):
 
     return {
         "source": {
-            "file": str(workbook_path),
+            "file": workbook_path.name,
             "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "currentMonth": CURRENT_MONTH,
         },
@@ -978,7 +1002,7 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v6";
+    const STORAGE_KEY = "gma-2026-dashboard-v7";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
