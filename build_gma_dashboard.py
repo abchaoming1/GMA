@@ -773,6 +773,120 @@ def html_template(initial_state):
     .sku-grid {{
       grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
     }}
+    .product-matrix {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      padding: 0 16px 16px;
+    }}
+    .product-card {{
+      border: 1px solid var(--line);
+      background: #fcfdfa;
+      border-radius: 8px;
+      overflow: hidden;
+    }}
+    .product-card.open {{
+      border-color: #b7d0bf;
+      background: #f7fbf8;
+    }}
+    .product-head {{
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+      padding: 12px;
+      text-align: left;
+    }}
+    .product-title {{
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 820;
+      color: var(--ink);
+    }}
+    .product-sub {{
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }}
+    .product-toggle {{
+      border-radius: 999px;
+      background: var(--soft-green);
+      color: var(--green);
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }}
+    .product-metrics {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 0 12px 12px;
+    }}
+    .metric-mini {{
+      border-top: 1px solid #e4ebe2;
+      padding-top: 8px;
+    }}
+    .metric-mini span {{
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 3px;
+    }}
+    .metric-mini strong {{
+      color: #27313a;
+      font-size: 14px;
+      font-weight: 800;
+    }}
+    .product-detail {{
+      display: none;
+      border-top: 1px solid var(--line);
+      background: #fff;
+      padding: 8px 12px 12px;
+    }}
+    .product-card.open .product-detail {{
+      display: grid;
+      gap: 8px;
+    }}
+    .variant-row {{
+      display: grid;
+      grid-template-columns: minmax(120px, 1fr) repeat(3, minmax(70px, auto));
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid #edf0ea;
+      padding-bottom: 7px;
+      font-size: 12px;
+    }}
+    .variant-row:last-child {{
+      border-bottom: 0;
+      padding-bottom: 0;
+    }}
+    .variant-name {{
+      min-width: 0;
+      color: #334047;
+      font-weight: 760;
+    }}
+    .variant-name span {{
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-weight: 620;
+      margin-top: 2px;
+    }}
+    .variant-value {{
+      text-align: right;
+      color: #27313a;
+      font-weight: 720;
+      white-space: nowrap;
+    }}
     .bars {{
       padding: 6px 16px 16px;
       display: grid;
@@ -1019,6 +1133,7 @@ def html_template(initial_state):
       <button class="tab active" data-view="dashboard">总览</button>
       <button class="tab" data-view="monthly">月度目标</button>
       <button class="tab" data-view="sku">SKU 分析</button>
+      <button class="tab" data-view="matrix">产品矩阵</button>
       <button class="tab" data-view="data2025">2025 数据</button>
       <button class="tab" data-view="data">2026 数据</button>
       <button class="tab" data-view="inventory">库存</button>
@@ -1139,6 +1254,16 @@ def html_template(initial_state):
       </div>
     </section>
 
+    <section id="matrix" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>产品矩阵</h2>
+          <span class="small-note">点击大类 SKU 展开小类 SKU；按产品系列聚合 2025 / 2026 / 目标表现</span>
+        </div>
+        <div id="productMatrix" class="product-matrix"></div>
+      </div>
+    </section>
+
     <section id="data2025" class="view">
       <div class="panel">
         <div class="panel-head">
@@ -1175,10 +1300,11 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v9";
+    const STORAGE_KEY = "gma-2026-dashboard-v10";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
+    const expandedProductFamilies = new Set();
 
     function clone(value) {{
       return JSON.parse(JSON.stringify(value));
@@ -1409,6 +1535,48 @@ def html_template(initial_state):
         .sort((a, b) => (b.incomeGap - a.incomeGap) || (b.qtyGap - a.qtyGap));
     }}
 
+    function productFamilyFromSku(sku) {{
+      const text = String(sku || "").trim();
+      if (!text) return "未填写";
+      return text.split("-")[0] || text;
+    }}
+
+    function productMatrixRows() {{
+      const map = new Map();
+      skuRows().forEach(row => {{
+        const family = productFamilyFromSku(row.sku);
+        if (!map.has(family)) map.set(family, {{
+          family,
+          variants: [],
+          qty25: 0,
+          qty26: 0,
+          income25: 0,
+          income26: 0,
+          qtyTarget: 0,
+          incomeTarget: 0,
+          qtyGap: 0,
+          incomeGap: 0,
+        }});
+        const item = map.get(family);
+        item.variants.push(row);
+        item.qty25 += Number(row.qty25 || 0);
+        item.qty26 += Number(row.qty26 || 0);
+        item.income25 += Number(row.income25 || 0);
+        item.income26 += Number(row.income26 || 0);
+        item.qtyTarget += Number(row.qtyTarget || 0);
+        item.incomeTarget += Number(row.incomeTarget || 0);
+        item.qtyGap += Number(row.qtyGap || 0);
+        item.incomeGap += Number(row.incomeGap || 0);
+      }});
+      return Array.from(map.values()).map(item => {{
+        item.qtyCompletion = item.qty26 / Math.max(item.qtyTarget, 1);
+        item.incomeCompletion = item.income26 / Math.max(item.incomeTarget, 1);
+        item.modelList = Array.from(new Set(item.variants.map(row => row.model).filter(Boolean)));
+        item.variants.sort((a, b) => b.qty26 - a.qty26 || b.income26 - a.income26 || String(a.sku).localeCompare(String(b.sku)));
+        return item;
+      }}).sort((a, b) => b.income26 - a.income26 || b.qty26 - a.qty26 || a.family.localeCompare(b.family));
+    }}
+
     function sortedSkuRows(rows) {{
       const sortKey = skuFilters.sort || "incomeGap";
       const directions = {{
@@ -1617,6 +1785,7 @@ def html_template(initial_state):
         renderSkuTable();
         renderSkuGapTable();
       }}
+      if (activeView === "matrix") renderProductMatrix();
       if (activeView === "data2025") renderData2025Table();
       if (activeView === "data") renderDataTable();
       if (activeView === "inventory") renderInventoryTable();
@@ -1792,6 +1961,59 @@ def html_template(initial_state):
             <div class="timeline-row">${{half.rows.map(renderMonth).join("")}}</div>
           </div>`;
       }}).join("");
+    }}
+
+    function renderProductMatrix() {{
+      const container = document.getElementById("productMatrix");
+      if (!container) return;
+      const rows = productMatrixRows();
+      if (!expandedProductFamilies.size && rows.length) expandedProductFamilies.add(rows[0].family);
+      container.innerHTML = rows.map(row => {{
+        const isOpen = expandedProductFamilies.has(row.family);
+        const modelText = row.modelList.slice(0, 3).join(" / ") || "Model 未填";
+        const variants = row.variants.map(variant => `
+          <div class="variant-row">
+            <div class="variant-name">${{escapeAttr(variant.sku)}}<span>${{escapeAttr(variant.model || "")}}</span></div>
+            <div class="variant-value">${{num(variant.qty26)}} QTY</div>
+            <div class="variant-value">${{money(variant.income26)}}</div>
+            <div class="variant-value ${{variant.incomeGap > 0 ? "negative" : "positive"}}">${{money(variant.incomeGap)}}</div>
+          </div>
+        `).join("");
+        return `
+          <div class="product-card ${{isOpen ? "open" : ""}}">
+            <button class="product-head" data-product-family="${{escapeAttr(row.family)}}" aria-expanded="${{isOpen ? "true" : "false"}}">
+              <div>
+                <div class="product-title">${{escapeAttr(row.family)}}</div>
+                <div class="product-sub">${{num(row.variants.length)}} 个小类 SKU ｜ ${{escapeAttr(modelText)}}</div>
+              </div>
+              <div class="product-toggle">${{isOpen ? "收起" : "展开"}}</div>
+            </button>
+            <div class="product-metrics">
+              <div class="metric-mini"><span>2026 QTY</span><strong>${{num(row.qty26)}}</strong></div>
+              <div class="metric-mini"><span>2026 Total Income</span><strong>${{money(row.income26)}}</strong></div>
+              <div class="metric-mini"><span>QTY 完成率</span><strong class="${{row.qtyCompletion < .8 ? "negative" : "positive"}}">${{pct(row.qtyCompletion, 1)}}</strong></div>
+              <div class="metric-mini"><span>营收缺口</span><strong class="${{row.incomeGap > 0 ? "negative" : "positive"}}">${{money(row.incomeGap)}}</strong></div>
+            </div>
+            <div class="product-detail">
+              <div class="variant-row">
+                <div class="variant-name">小类 SKU<span>Model</span></div>
+                <div class="variant-value">2026 QTY</div>
+                <div class="variant-value">2026 收入</div>
+                <div class="variant-value">收入缺口</div>
+              </div>
+              ${{variants}}
+            </div>
+          </div>
+        `;
+      }}).join("");
+      container.querySelectorAll("[data-product-family]").forEach(button => {{
+        button.addEventListener("click", () => {{
+          const family = button.dataset.productFamily;
+          if (expandedProductFamilies.has(family)) expandedProductFamilies.delete(family);
+          else expandedProductFamilies.add(family);
+          renderProductMatrix();
+        }});
+      }});
     }}
 
     function renderBars(id, rows, colorName) {{
@@ -2219,6 +2441,7 @@ def html_template(initial_state):
       const sku = skuRows();
       const gaps = underTargetSkuRows();
       const activityRows = activityTimelineRows();
+      const productRows = productMatrixRows();
       const sheets = [
         excelSheet("Summary", [
           ["Metric", "Value"],
@@ -2242,6 +2465,25 @@ def html_template(initial_state):
         excelSheet("Under Target SKU", [
           ["SKU", "Model", "2025 QTY", "Target QTY", "2026 QTY", "Gap QTY", "QTY Completion", "2025 Total Income", "Target Total Income", "2026 Total Income", "Income Gap", "Income Completion"],
           ...gaps.map(row => [row.sku, row.model, row.qty25, row.qtyTarget, row.qty26, row.qtyGap, row.qtyCompletion, row.income25, row.incomeTarget, row.income26, row.incomeGap, row.incomeCompletion]),
+        ]),
+        excelSheet("Product Matrix", [
+          ["Family SKU", "Sub SKU Count", "Sub SKU", "Model", "2025 QTY", "2026 QTY", "Target QTY", "QTY Gap", "QTY Completion", "2025 Total Income", "2026 Total Income", "Target Total Income", "Income Gap", "Income Completion"],
+          ...productRows.flatMap(row => row.variants.map(variant => [
+            row.family,
+            row.variants.length,
+            variant.sku,
+            variant.model,
+            variant.qty25,
+            variant.qty26,
+            variant.qtyTarget,
+            variant.qtyGap,
+            variant.qtyCompletion,
+            variant.income25,
+            variant.income26,
+            variant.incomeTarget,
+            variant.incomeGap,
+            variant.incomeCompletion,
+          ])),
         ]),
         excelSheet("2025 Data", [
           ["Year", "Month", "Type", "Date", "SKU", "Model", "Price", "Promo Price", "Inventory", "QTY", "Total QTY", "Rev", "Total Income", "First Payment", "Second Payment", "Actual Rev", "Returns Ratio", "Returns Amount"],
