@@ -781,8 +781,8 @@ def html_template(initial_state):
     .timeline-stats {{
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      padding: 2px 16px 12px;
+      gap: 10px;
+      padding: 4px 18px 14px;
     }}
     .stat-chip {{
       display: inline-flex;
@@ -792,34 +792,56 @@ def html_template(initial_state):
       background: #fbfcf8;
       color: #334047;
       border-radius: 999px;
-      padding: 5px 10px;
-      font-size: 12px;
+      padding: 6px 11px;
+      font-size: 13px;
       font-weight: 720;
     }}
     .activity-timeline {{
+      display: grid;
+      gap: 18px;
+      padding: 6px 18px 18px;
+    }}
+    .timeline-half {{
+      display: grid;
+      gap: 10px;
+    }}
+    .timeline-half-head {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: #334047;
+      font-weight: 800;
+    }}
+    .timeline-half-head span {{
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 680;
+    }}
+    .timeline-row {{
       position: relative;
       display: grid;
-      grid-template-columns: repeat(12, minmax(118px, 1fr));
-      gap: 10px;
-      padding: 8px 16px 16px;
+      grid-template-columns: repeat(6, minmax(178px, 1fr));
+      gap: 12px;
       overflow-x: auto;
+      padding-top: 8px;
     }}
-    .activity-timeline::before {{
+    .timeline-row::before {{
       content: "";
       position: absolute;
-      left: 16px;
-      right: 16px;
-      top: 43px;
+      left: 6px;
+      right: 6px;
+      top: 15px;
       height: 2px;
       background: #dde7dd;
     }}
     .timeline-month {{
       position: relative;
-      min-height: 148px;
+      min-height: 250px;
       border: 1px solid var(--line);
       background: #fcfdfa;
       border-radius: 8px;
-      padding: 28px 10px 10px;
+      padding: 32px 12px 12px;
     }}
     .timeline-month.has-activity {{
       background: #f7fbf8;
@@ -845,20 +867,21 @@ def html_template(initial_state):
       align-items: start;
       justify-content: space-between;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }}
     .timeline-label {{
       color: #334047;
+      font-size: 16px;
       font-weight: 780;
     }}
     .timeline-count {{
-      min-width: 34px;
+      min-width: 42px;
       text-align: center;
       border-radius: 999px;
       background: var(--soft-green);
       color: var(--green);
-      padding: 2px 7px;
-      font-size: 12px;
+      padding: 3px 8px;
+      font-size: 13px;
       font-weight: 800;
     }}
     .timeline-count.empty {{
@@ -868,29 +891,58 @@ def html_template(initial_state):
     .timeline-chips {{
       display: flex;
       flex-wrap: wrap;
-      gap: 5px;
-      min-height: 22px;
-      margin-bottom: 8px;
+      gap: 6px;
+      min-height: 24px;
+      margin-bottom: 10px;
     }}
     .type-chip {{
       border-radius: 999px;
       background: #e8f1f2;
       color: #22666e;
-      padding: 2px 7px;
-      font-size: 11px;
+      padding: 3px 8px;
+      font-size: 12px;
       font-weight: 720;
     }}
     .timeline-events {{
       display: grid;
-      gap: 5px;
+      gap: 8px;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.35;
     }}
-    .event-line {{
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .activity-event {{
+      border: 1px solid #dce8dc;
+      background: #ffffff;
+      border-radius: 7px;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }}
+    .event-meta {{
+      color: #334047;
+      font-weight: 760;
+    }}
+    .event-sub {{
+      color: var(--muted);
+      font-size: 11px;
+    }}
+    .event-skus {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }}
+    .sku-chip {{
+      border-radius: 5px;
+      background: #eef6f1;
+      color: #245f45;
+      padding: 2px 5px;
+      font-size: 11px;
+      font-weight: 720;
+      line-height: 1.25;
+    }}
+    .event-empty {{
+      color: var(--muted);
+      font-size: 12px;
     }}
     .bar-row {{
       display: grid;
@@ -939,7 +991,7 @@ def html_template(initial_state):
       .form-row {{ grid-template-columns: 1fr; }}
       .filter-row {{ grid-template-columns: 1fr; }}
       .filter-summary {{ text-align: left; }}
-      .activity-timeline {{ grid-template-columns: repeat(12, minmax(118px, 132px)); }}
+      .timeline-row {{ grid-template-columns: repeat(6, minmax(178px, 220px)); }}
       .kpi-value {{ font-size: 20px; }}
       table {{ min-width: 760px; }}
     }}
@@ -1123,7 +1175,7 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v8";
+    const STORAGE_KEY = "gma-2026-dashboard-v9";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -1698,17 +1750,25 @@ def html_template(initial_state):
         `活跃月份 ${{num(activeMonths)}} 个`,
         categories.length ? `活动品类 ${{categories.map(item => `${{item.type}} x${{item.count}}`).join(" / ")}}` : "活动品类 暂无",
       ].map(text => `<span class="stat-chip">${{escapeAttr(text)}}</span>`).join("");
-      container.innerHTML = rows.map(row => {{
+      const renderMonth = row => {{
         const chips = row.categories.length
           ? row.categories.map(category => `<span class="type-chip">${{escapeAttr(category.type)}} x${{num(category.count)}}</span>`).join("")
           : `<span class="type-chip">无活动</span>`;
-        const details = row.activities.slice(0, 3).map(activity => {{
+        const details = row.activities.map(activity => {{
           const dateText = activity.startDate || activity.endDate ? `${{shortDate(activity.startDate)}}-${{shortDate(activity.endDate)}}` : "日期未填";
-          const skuText = activity.skuCount ? `${{num(activity.skuCount)}} SKU` : "SKU 未填";
-          const detail = `${{dateText}}｜${{activity.type}}｜${{skuText}}`;
-          return `<div class="event-line" title="${{escapeAttr(detail)}}">${{escapeAttr(detail)}}</div>`;
+          const skuText = activity.skuList.length ? activity.skuList.join(" / ") : "SKU 未填";
+          const modelText = activity.modelList.length ? activity.modelList.join(" / ") : "";
+          const skuChips = activity.skuList.length
+            ? activity.skuList.map(sku => `<span class="sku-chip">${{escapeAttr(sku)}}</span>`).join("")
+            : `<span class="sku-chip">SKU 未填</span>`;
+          const title = `${{dateText}} | ${{activity.type}} | ${{skuText}}`;
+          return `
+            <div class="activity-event" title="${{escapeAttr(title)}}">
+              <div class="event-meta">${{escapeAttr(dateText)}} ｜ ${{escapeAttr(activity.type)}}</div>
+              <div class="event-sub">${{num(activity.skuCount)}} SKU${{modelText ? ` ｜ ${{escapeAttr(modelText)}}` : ""}}</div>
+              <div class="event-skus">${{skuChips}}</div>
+            </div>`;
         }}).join("");
-        const more = row.activities.length > 3 ? `<div class="event-line">+${{num(row.activities.length - 3)}} 更多活动</div>` : "";
         return `
           <div class="timeline-month ${{row.count ? "has-activity" : ""}}">
             <span class="timeline-dot"></span>
@@ -1717,7 +1777,19 @@ def html_template(initial_state):
               <div class="timeline-count ${{row.count ? "" : "empty"}}">${{num(row.count)}}</div>
             </div>
             <div class="timeline-chips">${{chips}}</div>
-            <div class="timeline-events">${{details || `<div class="event-line">暂无活动</div>`}}${{more}}</div>
+            <div class="timeline-events">${{details || `<div class="event-empty">暂无活动</div>`}}</div>
+          </div>`;
+      }};
+      const halves = [
+        {{ title: "上半年", rows: rows.slice(0, 6) }},
+        {{ title: "下半年", rows: rows.slice(6, 12) }},
+      ];
+      container.innerHTML = halves.map(half => {{
+        const halfCount = half.rows.reduce((sum, row) => sum + row.count, 0);
+        return `
+          <div class="timeline-half">
+            <div class="timeline-half-head">${{half.title}}<span>${{num(halfCount)}} 次活动</span></div>
+            <div class="timeline-row">${{half.rows.map(renderMonth).join("")}}</div>
           </div>`;
       }}).join("");
     }}
