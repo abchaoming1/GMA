@@ -1189,6 +1189,14 @@ def html_template(initial_state):
         <div id="activityTimeline" class="activity-timeline"></div>
       </div>
 
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-head">
+          <h2>产品矩阵</h2>
+          <span class="small-note">首页展示：大类 SKU 可点击展开小类 SKU</span>
+        </div>
+        <div id="productMatrixDashboard" class="product-matrix"></div>
+      </div>
+
       <div class="grid two-col" style="margin-top:14px;">
         <div class="panel">
           <div class="panel-head"><h2>活动类型对比</h2><span class="small-note">按 Total Income 与 QTY 对比</span></div>
@@ -1300,7 +1308,7 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v10";
+    const STORAGE_KEY = "gma-2026-dashboard-v11";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -1776,6 +1784,7 @@ def html_template(initial_state):
       renderWaterfallChart();
       renderParetoChart("paretoChart");
       renderActivityTimeline();
+      renderProductMatrices();
       renderTypeChart();
       renderQuantityBars("skuBars", skuRows().filter(r => r.qty26 > 0).slice(0, 10).map(r => [r.sku, r.qty26]));
       if (activeView === "monthly") renderMonthlyTable();
@@ -1785,7 +1794,6 @@ def html_template(initial_state):
         renderSkuTable();
         renderSkuGapTable();
       }}
-      if (activeView === "matrix") renderProductMatrix();
       if (activeView === "data2025") renderData2025Table();
       if (activeView === "data") renderDataTable();
       if (activeView === "inventory") renderInventoryTable();
@@ -1963,8 +1971,13 @@ def html_template(initial_state):
       }}).join("");
     }}
 
-    function renderProductMatrix() {{
-      const container = document.getElementById("productMatrix");
+    function renderProductMatrices() {{
+      renderProductMatrix("productMatrixDashboard");
+      renderProductMatrix("productMatrix");
+    }}
+
+    function renderProductMatrix(containerId = "productMatrix") {{
+      const container = document.getElementById(containerId);
       if (!container) return;
       const rows = productMatrixRows();
       if (!expandedProductFamilies.size && rows.length) expandedProductFamilies.add(rows[0].family);
@@ -2011,7 +2024,7 @@ def html_template(initial_state):
           const family = button.dataset.productFamily;
           if (expandedProductFamilies.has(family)) expandedProductFamilies.delete(family);
           else expandedProductFamilies.add(family);
-          renderProductMatrix();
+          renderProductMatrices();
         }});
       }});
     }}
