@@ -775,19 +775,22 @@ def html_template(initial_state):
     }}
     .product-matrix {{
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 14px;
       padding: 0 16px 16px;
+      align-items: start;
     }}
     .product-card {{
       border: 1px solid var(--line);
       background: #fcfdfa;
       border-radius: 8px;
       overflow: hidden;
+      min-width: 0;
     }}
     .product-card.open {{
       border-color: #b7d0bf;
       background: #f7fbf8;
+      grid-column: span 2;
     }}
     .product-head {{
       width: 100%;
@@ -848,44 +851,59 @@ def html_template(initial_state):
       display: none;
       border-top: 1px solid var(--line);
       background: #fff;
-      padding: 8px 12px 12px;
+      padding: 10px 12px 12px;
     }}
     .product-card.open .product-detail {{
       display: grid;
-      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
     }}
-    .variant-row {{
+    .variant-card {{
       display: grid;
-      grid-template-columns: minmax(120px, 1fr) repeat(3, minmax(70px, auto));
+      grid-template-rows: auto 1fr;
       gap: 8px;
-      align-items: center;
-      border-bottom: 1px solid #edf0ea;
-      padding-bottom: 7px;
+      border: 1px solid #edf0ea;
+      border-radius: 8px;
+      background: #fbfcfa;
+      padding: 10px;
       font-size: 12px;
-    }}
-    .variant-row:last-child {{
-      border-bottom: 0;
-      padding-bottom: 0;
     }}
     .variant-name {{
       min-width: 0;
       color: #334047;
       font-weight: 760;
+      overflow-wrap: anywhere;
     }}
     .variant-name span {{
       display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
       color: var(--muted);
       font-weight: 620;
       margin-top: 2px;
+      overflow-wrap: anywhere;
     }}
-    .variant-value {{
-      text-align: right;
+    .variant-kpis {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }}
+    .variant-metric {{
+      border-top: 1px solid #edf0ea;
+      padding-top: 7px;
+      min-width: 0;
+    }}
+    .variant-metric span {{
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+      margin-bottom: 3px;
+    }}
+    .variant-metric strong {{
       color: #27313a;
-      font-weight: 720;
-      white-space: nowrap;
+      font-weight: 800;
+      font-size: 12px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
     }}
     .bars {{
       padding: 6px 16px 16px;
@@ -1097,6 +1115,7 @@ def html_template(initial_state):
     }}
     @media (max-width: 1100px) {{
       .kpis, .dashboard-grid, .two-col, .sku-grid {{ grid-template-columns: 1fr; }}
+      .product-card.open {{ grid-column: span 1; }}
       .topbar {{ align-items: start; flex-direction: column; }}
       .controls {{ justify-content: flex-start; }}
     }}
@@ -1105,6 +1124,8 @@ def html_template(initial_state):
       .form-row {{ grid-template-columns: 1fr; }}
       .filter-row {{ grid-template-columns: 1fr; }}
       .filter-summary {{ text-align: left; }}
+      .product-matrix {{ grid-template-columns: 1fr; padding-left: 12px; padding-right: 12px; }}
+      .product-metrics, .variant-kpis {{ grid-template-columns: 1fr; }}
       .timeline-row {{ grid-template-columns: repeat(6, minmax(178px, 220px)); }}
       .kpi-value {{ font-size: 20px; }}
       table {{ min-width: 760px; }}
@@ -1308,7 +1329,7 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v11";
+    const STORAGE_KEY = "gma-2026-dashboard-v12";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -1985,11 +2006,13 @@ def html_template(initial_state):
         const isOpen = expandedProductFamilies.has(row.family);
         const modelText = row.modelList.slice(0, 3).join(" / ") || "Model 未填";
         const variants = row.variants.map(variant => `
-          <div class="variant-row">
+          <div class="variant-card">
             <div class="variant-name">${{escapeAttr(variant.sku)}}<span>${{escapeAttr(variant.model || "")}}</span></div>
-            <div class="variant-value">${{num(variant.qty26)}} QTY</div>
-            <div class="variant-value">${{money(variant.income26)}}</div>
-            <div class="variant-value ${{variant.incomeGap > 0 ? "negative" : "positive"}}">${{money(variant.incomeGap)}}</div>
+            <div class="variant-kpis">
+              <div class="variant-metric"><span>2026 QTY</span><strong>${{num(variant.qty26)}} QTY</strong></div>
+              <div class="variant-metric"><span>2026 收入</span><strong>${{money(variant.income26)}}</strong></div>
+              <div class="variant-metric"><span>收入缺口</span><strong class="${{variant.incomeGap > 0 ? "negative" : "positive"}}">${{money(variant.incomeGap)}}</strong></div>
+            </div>
           </div>
         `).join("");
         return `
@@ -2008,12 +2031,6 @@ def html_template(initial_state):
               <div class="metric-mini"><span>营收缺口</span><strong class="${{row.incomeGap > 0 ? "negative" : "positive"}}">${{money(row.incomeGap)}}</strong></div>
             </div>
             <div class="product-detail">
-              <div class="variant-row">
-                <div class="variant-name">小类 SKU<span>Model</span></div>
-                <div class="variant-value">2026 QTY</div>
-                <div class="variant-value">2026 收入</div>
-                <div class="variant-value">收入缺口</div>
-              </div>
               ${{variants}}
             </div>
           </div>
