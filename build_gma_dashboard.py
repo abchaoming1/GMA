@@ -778,6 +778,120 @@ def html_template(initial_state):
       display: grid;
       gap: 10px;
     }}
+    .timeline-stats {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 2px 16px 12px;
+    }}
+    .stat-chip {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: #fbfcf8;
+      color: #334047;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 720;
+    }}
+    .activity-timeline {{
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(118px, 1fr));
+      gap: 10px;
+      padding: 8px 16px 16px;
+      overflow-x: auto;
+    }}
+    .activity-timeline::before {{
+      content: "";
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      top: 43px;
+      height: 2px;
+      background: #dde7dd;
+    }}
+    .timeline-month {{
+      position: relative;
+      min-height: 148px;
+      border: 1px solid var(--line);
+      background: #fcfdfa;
+      border-radius: 8px;
+      padding: 28px 10px 10px;
+    }}
+    .timeline-month.has-activity {{
+      background: #f7fbf8;
+      border-color: #c7dacd;
+    }}
+    .timeline-dot {{
+      position: absolute;
+      top: -7px;
+      left: 14px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      background: #aeb9a9;
+      box-shadow: 0 0 0 1px var(--line);
+    }}
+    .timeline-month.has-activity .timeline-dot {{
+      background: var(--teal);
+      box-shadow: 0 0 0 1px #9fc9c8;
+    }}
+    .timeline-top {{
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }}
+    .timeline-label {{
+      color: #334047;
+      font-weight: 780;
+    }}
+    .timeline-count {{
+      min-width: 34px;
+      text-align: center;
+      border-radius: 999px;
+      background: var(--soft-green);
+      color: var(--green);
+      padding: 2px 7px;
+      font-size: 12px;
+      font-weight: 800;
+    }}
+    .timeline-count.empty {{
+      background: #eef1eb;
+      color: var(--muted);
+    }}
+    .timeline-chips {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      min-height: 22px;
+      margin-bottom: 8px;
+    }}
+    .type-chip {{
+      border-radius: 999px;
+      background: #e8f1f2;
+      color: #22666e;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-weight: 720;
+    }}
+    .timeline-events {{
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }}
+    .event-line {{
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }}
     .bar-row {{
       display: grid;
       grid-template-columns: 150px 1fr 92px;
@@ -825,6 +939,7 @@ def html_template(initial_state):
       .form-row {{ grid-template-columns: 1fr; }}
       .filter-row {{ grid-template-columns: 1fr; }}
       .filter-summary {{ text-align: left; }}
+      .activity-timeline {{ grid-template-columns: repeat(12, minmax(118px, 132px)); }}
       .kpi-value {{ font-size: 20px; }}
       table {{ min-width: 760px; }}
     }}
@@ -899,6 +1014,12 @@ def html_template(initial_state):
           <div class="panel-head"><h2>SKU 销量 Pareto</h2><span class="small-note">按 2026 QTY 排名与累计占比</span></div>
           <div id="paretoChart" class="chart"></div>
         </div>
+      </div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-head"><h2>月度活动时间轴</h2><span class="small-note">按活动类型 + 开始日期 + 结束日期去重统计</span></div>
+        <div id="activityTimelineStats" class="timeline-stats"></div>
+        <div id="activityTimeline" class="activity-timeline"></div>
       </div>
 
       <div class="grid two-col" style="margin-top:14px;">
@@ -1002,7 +1123,7 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v7";
+    const STORAGE_KEY = "gma-2026-dashboard-v8";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -1304,6 +1425,71 @@ def html_template(initial_state):
       return Array.from(map.values()).filter(row => row.income > 0 || row.qty > 0).sort((a, b) => b.income - a.income);
     }}
 
+    function shortDate(value) {{
+      return String(value || "").replace(/^2026-/, "").replace(/^2025-/, "");
+    }}
+
+    function activityTimelineRows() {{
+      const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const months = Array.from({{ length: 12 }}, (_, index) => ({{
+        month: index + 1,
+        label: labels[index],
+        activities: [],
+        categoryMap: new Map(),
+      }}));
+      const events = new Map();
+      state.rows2026.forEach(row => {{
+        const month = Number(row.month || 0);
+        if (month < 1 || month > 12) return;
+        const type = row.type || "未填写";
+        const startDate = row.startDate || "";
+        const endDate = row.endDate || "";
+        const status = row.status || "";
+        const key = `${{month}}|${{type}}|${{startDate}}|${{endDate}}|${{status}}`;
+        if (!events.has(key)) {{
+          events.set(key, {{
+            month,
+            type,
+            startDate,
+            endDate,
+            status,
+            qty: 0,
+            income: 0,
+            skus: new Set(),
+            models: new Set(),
+          }});
+        }}
+        const event = events.get(key);
+        event.qty += Number(row.qty || 0);
+        event.income += Number(row.totalIncome || row.grossRev || 0);
+        if (row.sku) event.skus.add(row.sku);
+        if (row.model) event.models.add(row.model);
+      }});
+      Array.from(events.values()).forEach(event => {{
+        event.skuList = Array.from(event.skus);
+        event.modelList = Array.from(event.models);
+        event.skuCount = event.skuList.length;
+        delete event.skus;
+        delete event.models;
+        const month = months[event.month - 1];
+        month.activities.push(event);
+        month.categoryMap.set(event.type, (month.categoryMap.get(event.type) || 0) + 1);
+      }});
+      return months.map(month => {{
+        const categories = Array.from(month.categoryMap.entries())
+          .map(([type, count]) => ({{ type, count }}))
+          .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+        month.activities.sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)) || a.type.localeCompare(b.type));
+        return {{
+          month: month.month,
+          label: month.label,
+          count: month.activities.length,
+          categories,
+          activities: month.activities,
+        }};
+      }});
+    }}
+
     function currentMonthConclusion() {{
       const month = Number((state.source && state.source.currentMonth) || (new Date().getMonth() + 1));
       const row = monthlyRows().find(item => item.month === month);
@@ -1369,6 +1555,7 @@ def html_template(initial_state):
       renderProgress();
       renderWaterfallChart();
       renderParetoChart("paretoChart");
+      renderActivityTimeline();
       renderTypeChart();
       renderQuantityBars("skuBars", skuRows().filter(r => r.qty26 > 0).slice(0, 10).map(r => [r.sku, r.qty26]));
       if (activeView === "monthly") renderMonthlyTable();
@@ -1490,6 +1677,49 @@ def html_template(initial_state):
       document.getElementById("insightList").innerHTML = insights
         .map((text, index) => `<div class="insight ${{index === 0 && actual < target ? "risk" : ""}}">${{text}}</div>`)
         .join("");
+    }}
+
+    function renderActivityTimeline() {{
+      const container = document.getElementById("activityTimeline");
+      const statsEl = document.getElementById("activityTimelineStats");
+      if (!container || !statsEl) return;
+      const rows = activityTimelineRows();
+      const total = rows.reduce((sum, row) => sum + row.count, 0);
+      const activeMonths = rows.filter(row => row.count > 0).length;
+      const categoryMap = new Map();
+      rows.forEach(row => row.categories.forEach(category => {{
+        categoryMap.set(category.type, (categoryMap.get(category.type) || 0) + category.count);
+      }}));
+      const categories = Array.from(categoryMap.entries())
+        .map(([type, count]) => ({{ type, count }}))
+        .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+      statsEl.innerHTML = [
+        `全年活动 ${{num(total)}} 次`,
+        `活跃月份 ${{num(activeMonths)}} 个`,
+        categories.length ? `活动品类 ${{categories.map(item => `${{item.type}} x${{item.count}}`).join(" / ")}}` : "活动品类 暂无",
+      ].map(text => `<span class="stat-chip">${{escapeAttr(text)}}</span>`).join("");
+      container.innerHTML = rows.map(row => {{
+        const chips = row.categories.length
+          ? row.categories.map(category => `<span class="type-chip">${{escapeAttr(category.type)}} x${{num(category.count)}}</span>`).join("")
+          : `<span class="type-chip">无活动</span>`;
+        const details = row.activities.slice(0, 3).map(activity => {{
+          const dateText = activity.startDate || activity.endDate ? `${{shortDate(activity.startDate)}}-${{shortDate(activity.endDate)}}` : "日期未填";
+          const skuText = activity.skuCount ? `${{num(activity.skuCount)}} SKU` : "SKU 未填";
+          const detail = `${{dateText}}｜${{activity.type}}｜${{skuText}}`;
+          return `<div class="event-line" title="${{escapeAttr(detail)}}">${{escapeAttr(detail)}}</div>`;
+        }}).join("");
+        const more = row.activities.length > 3 ? `<div class="event-line">+${{num(row.activities.length - 3)}} 更多活动</div>` : "";
+        return `
+          <div class="timeline-month ${{row.count ? "has-activity" : ""}}">
+            <span class="timeline-dot"></span>
+            <div class="timeline-top">
+              <div class="timeline-label">${{row.label}}</div>
+              <div class="timeline-count ${{row.count ? "" : "empty"}}">${{num(row.count)}}</div>
+            </div>
+            <div class="timeline-chips">${{chips}}</div>
+            <div class="timeline-events">${{details || `<div class="event-line">暂无活动</div>`}}${{more}}</div>
+          </div>`;
+      }}).join("");
     }}
 
     function renderBars(id, rows, colorName) {{
@@ -1916,6 +2146,7 @@ def html_template(initial_state):
       const monthly = monthlyRows();
       const sku = skuRows();
       const gaps = underTargetSkuRows();
+      const activityRows = activityTimelineRows();
       const sheets = [
         excelSheet("Summary", [
           ["Metric", "Value"],
@@ -1947,6 +2178,15 @@ def html_template(initial_state):
         excelSheet("2026 Data", [
           ["Year", "Month", "Type", "SKU", "Model", "Promo", "Begin Inventory", "End Inventory", "QTY", "Total Income", "First Payment", "Second Payment", "Actual Rev"],
           ...state.rows2026.map(row => [row.year, row.month, row.type, row.sku, row.model, row.promoPrice, row.beginInventory, row.endInventory, row.qty, row.totalIncome || row.grossRev, row.firstPayment, row.secondPayment, row.actualRev || row.netRev]),
+        ]),
+        excelSheet("Activity Timeline", [
+          ["Month", "Activity Count", "Activity Types", "Activity Details"],
+          ...activityRows.map(row => [
+            row.label,
+            row.count,
+            row.categories.map(category => `${{category.type}} x${{category.count}}`).join("; "),
+            row.activities.map(activity => `${{activity.startDate || ""}}-${{activity.endDate || ""}} | ${{activity.type}} | ${{activity.skuCount}} SKU | QTY ${{Math.round(activity.qty)}} | Income ${{Math.round(activity.income)}}`).join("; "),
+          ]),
         ]),
         excelSheet("Inventory", [
           ["Month", "Date", "SKU", "Model", "Original Inventory", "Transfer Inventory", "Total Inventory"],
