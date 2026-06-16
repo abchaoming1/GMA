@@ -1050,9 +1050,53 @@ def html_template(initial_state):
       display: grid;
       gap: 6px;
     }}
+    .event-head {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+    }}
     .event-meta {{
       color: #334047;
       font-weight: 760;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }}
+    .activity-event > .event-meta {{
+      display: none;
+    }}
+    .event-actions {{
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }}
+    .event-status-select {{
+      min-height: 24px;
+      border: 1px solid #d8e5db;
+      border-radius: 999px;
+      background: #f7fbf8;
+      color: #245f45;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }}
+    .event-status-select.tentative {{
+      background: #fff7e6;
+      border-color: #edd7a1;
+      color: #916313;
+    }}
+    .event-delete {{
+      min-height: 24px;
+      border: 1px solid #ead0d0;
+      border-radius: 999px;
+      background: #fff8f8;
+      color: #a04343;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: none;
     }}
     .event-sub {{
       color: var(--muted);
@@ -1105,6 +1149,74 @@ def html_template(initial_state):
       color: var(--muted);
       font-size: 12px;
     }}
+    .timeline-add {{
+      width: 100%;
+      min-height: 30px;
+      border: 1px dashed #b9d0c1;
+      border-radius: 7px;
+      background: #fbfdf9;
+      color: #2f7650;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: none;
+    }}
+    .activity-dialog-backdrop {{
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(31, 42, 36, .28);
+    }}
+    .activity-dialog-backdrop.open {{
+      display: flex;
+    }}
+    .activity-dialog {{
+      width: min(620px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 18px 50px rgba(40, 48, 42, .18);
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }}
+    .activity-form-grid {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }}
+    .activity-form-grid label {{
+      display: grid;
+      gap: 6px;
+      color: #40505a;
+      font-size: 12px;
+      font-weight: 760;
+    }}
+    .activity-form-grid input, .activity-form-grid select, .activity-form-grid textarea {{
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font: inherit;
+      color: var(--ink);
+      background: #fcfdfa;
+    }}
+    .activity-form-grid textarea {{
+      min-height: 118px;
+      resize: vertical;
+      line-height: 1.45;
+    }}
+    .activity-form-grid .full-span {{
+      grid-column: 1 / -1;
+    }}
+    .activity-form-actions {{
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }}
     .bar-row {{
       display: grid;
       grid-template-columns: 150px 1fr 92px;
@@ -1155,6 +1267,9 @@ def html_template(initial_state):
       .filter-summary {{ text-align: left; }}
       .product-matrix {{ grid-template-columns: 1fr; padding-left: 12px; padding-right: 12px; }}
       .product-metrics, .variant-kpis {{ grid-template-columns: 1fr; }}
+      .activity-form-grid {{ grid-template-columns: 1fr; }}
+      .event-head {{ grid-template-columns: 1fr; }}
+      .event-actions {{ justify-content: flex-start; }}
       .timeline-row {{ grid-template-columns: repeat(6, minmax(178px, 220px)); }}
       .kpi-value {{ font-size: 20px; }}
       table {{ min-width: 760px; }}
@@ -1356,9 +1471,49 @@ def html_template(initial_state):
     </section>
   </main>
 
+  <div id="activityEditor" class="activity-dialog-backdrop" aria-hidden="true">
+    <form id="activityForm" class="activity-dialog">
+      <div class="panel-head">
+        <h2>新增活动</h2>
+        <span class="small-note">一行一个 SKU，支持：SKU | Model | 单价</span>
+      </div>
+      <div class="activity-form-grid">
+        <label>月份
+          <select id="activityMonthInput">
+            <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+            <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+          </select>
+        </label>
+        <label>状态
+          <select id="activityStatusInput">
+            <option value="tentative">暂定</option>
+            <option value="confirmed">已定</option>
+          </select>
+        </label>
+        <label>活动类型
+          <input id="activityTypeInput" type="text" value="GMA" required>
+        </label>
+        <label>开始日期
+          <input id="activityStartInput" type="date">
+        </label>
+        <label>结束日期
+          <input id="activityEndInput" type="date">
+        </label>
+        <label class="full-span">SKU / Model / 单价
+          <textarea id="activitySkuInput" required placeholder="S803-ST-BK-US | S803+Waist Bag | 84.95&#10;S803-ST-BL-US | S803+Waist Bag | 84.95"></textarea>
+        </label>
+      </div>
+      <div class="activity-form-actions">
+        <button type="button" id="activityCancelBtn">取消</button>
+        <button type="submit" class="primary">添加</button>
+      </div>
+    </form>
+  </div>
+
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v14";
+    const STORAGE_KEY = "gma-2026-dashboard-v15";
+    const STORAGE_FALLBACK_KEYS = ["gma-2026-dashboard-v14", "gma-2026-dashboard-v13", "gma-2026-dashboard-v12"];
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -1376,13 +1531,23 @@ def html_template(initial_state):
       nextState.rows2026 = nextState.rows2026 || [];
       nextState.inventory2026 = nextState.inventory2026 || [];
       nextState.source = nextState.source || clone(INITIAL_STATE.source || {{}});
+      nextState.rows2026.forEach((row, index) => {{
+        if (!row.id) row.id = `row-${{index + 1}}`;
+      }});
       return nextState;
     }}
 
     function loadState() {{
       try {{
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) return normalizeState(JSON.parse(saved));
+        const keys = [STORAGE_KEY, ...STORAGE_FALLBACK_KEYS];
+        for (const key of keys) {{
+          const saved = localStorage.getItem(key);
+          if (saved) {{
+            const loaded = normalizeState(JSON.parse(saved));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
+            return loaded;
+          }}
+        }}
       }} catch (error) {{}}
       return normalizeState(clone(INITIAL_STATE));
     }}
@@ -1390,6 +1555,10 @@ def html_template(initial_state):
     function saveState() {{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       flash("已保存");
+    }}
+
+    function persistSilently() {{
+      try {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }} catch (error) {{}}
     }}
 
     function flash(text) {{
@@ -1726,6 +1895,134 @@ def html_template(initial_state):
       return Number(row.price || 0);
     }}
 
+    function activityStatusKey(value, month) {{
+      const text = String(value || "").trim().toLowerCase();
+      if (text.includes("已定") || text.includes("已结束") || text.includes("confirmed") || text.includes("actual")) return "confirmed";
+      if (text.includes("暂定") || text.includes("计划") || text.includes("tentative") || text.includes("plan")) return "tentative";
+      return Number(month || 0) >= 6 ? "tentative" : "confirmed";
+    }}
+
+    function activityStatusText(status) {{
+      return status === "confirmed" ? "已定" : "暂定";
+    }}
+
+    function setRowsStatus(rowIds, status) {{
+      const ids = new Set(rowIds);
+      state.rows2026.forEach(row => {{
+        if (ids.has(String(row.id))) row.status = activityStatusText(status);
+      }});
+      persistSilently();
+      renderAll();
+    }}
+
+    function deleteTimelineActivity(rowIds) {{
+      if (!rowIds.length) return;
+      if (!confirm("删除这个节目及其全部 SKU？")) return;
+      const ids = new Set(rowIds);
+      state.rows2026 = state.rows2026.filter(row => !ids.has(String(row.id)));
+      persistSilently();
+      renderAll();
+    }}
+
+    function skuReferenceMap() {{
+      const map = new Map();
+      skuRows().forEach(row => map.set(row.sku, row));
+      return map;
+    }}
+
+    function parseSkuLines(text) {{
+      const refs = skuReferenceMap();
+      return String(text || "").split(/\\r?\\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => {{
+          const parts = line.split(/\\t|\\s*\\|\\s*|,/).map(part => part.trim()).filter(Boolean);
+          const sku = parts[0] || "";
+          const ref = refs.get(sku) || {{}};
+          const model = parts[1] || ref.model || "";
+          const rawPrice = String(parts[2] || "").replace(/[$,]/g, "");
+          const price = Number(rawPrice || ref.unitPrice || averagePromoPrice() || 0);
+          return {{ sku, model, price }};
+        }})
+        .filter(item => item.sku);
+    }}
+
+    function openActivityEditor(month) {{
+      const modal = document.getElementById("activityEditor");
+      document.getElementById("activityMonthInput").value = String(month || 6);
+      document.getElementById("activityStatusInput").value = Number(month || 0) >= 6 ? "tentative" : "confirmed";
+      document.getElementById("activityTypeInput").value = "GMA";
+      document.getElementById("activityStartInput").value = "";
+      document.getElementById("activityEndInput").value = "";
+      document.getElementById("activitySkuInput").value = "";
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      document.getElementById("activitySkuInput").focus();
+    }}
+
+    function closeActivityEditor() {{
+      const modal = document.getElementById("activityEditor");
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+    }}
+
+    function createActivityRowsFromForm() {{
+      const month = Number(document.getElementById("activityMonthInput").value || 0);
+      const status = document.getElementById("activityStatusInput").value || "tentative";
+      const type = document.getElementById("activityTypeInput").value.trim() || "GMA";
+      const startDate = document.getElementById("activityStartInput").value || "";
+      const endDate = document.getElementById("activityEndInput").value || "";
+      const skuItems = parseSkuLines(document.getElementById("activitySkuInput").value);
+      if (!month || !skuItems.length) {{
+        alert("请至少填写月份和一个 SKU。");
+        return;
+      }}
+      const stamp = Date.now();
+      skuItems.forEach((item, index) => {{
+        const price = Number(item.price || 0);
+        state.rows2026.push({{
+          id: `manual-${{stamp}}-${{index + 1}}`,
+          year: 2026,
+          month,
+          type,
+          status: activityStatusText(status),
+          startDate,
+          endDate,
+          sku: item.sku,
+          model: item.model,
+          price,
+          promoPrice: price,
+          beginInventory: 0,
+          endInventory: 0,
+          qty: 0,
+          achRate: 0,
+          groupQty: 0,
+          groupGross: 0,
+          groupTotalIncome: 0,
+          groupNet: 0,
+          groupActualRev: 0,
+          grossRev: 0,
+          totalIncome: 0,
+          firstPayment: 0,
+          secondPayment: 0,
+          actualRev: 0,
+          netRev: 0,
+          forecastQty: 0,
+          forecastTotalIncome: 0,
+          forecastFirstPayment: 0,
+          forecastSecondPayment: 0,
+          forecastActualRev: 0,
+          forecastNet: 0,
+          allocationWeight: 0,
+          isActual: false,
+          effectivePromoPrice: price,
+        }});
+      }});
+      closeActivityEditor();
+      persistSilently();
+      renderAll();
+    }}
+
     function activityTimelineRows() {{
       const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       const months = Array.from({{ length: 12 }}, (_, index) => ({{
@@ -1741,7 +2038,7 @@ def html_template(initial_state):
         const type = row.type || "未填写";
         const startDate = row.startDate || "";
         const endDate = row.endDate || "";
-        const status = row.status || "";
+        const status = activityStatusKey(row.status, month);
         const key = `${{month}}|${{type}}|${{startDate}}|${{endDate}}|${{status}}`;
         if (!events.has(key)) {{
           events.set(key, {{
@@ -1750,6 +2047,7 @@ def html_template(initial_state):
             startDate,
             endDate,
             status,
+            rowIds: [],
             qty: 0,
             income: 0,
             skus: new Set(),
@@ -1759,6 +2057,7 @@ def html_template(initial_state):
         }}
         const event = events.get(key);
         const income = Number(row.totalIncome || row.grossRev || 0);
+        event.rowIds.push(String(row.id));
         event.qty += Number(row.qty || 0);
         event.income += income;
         if (row.sku) event.skus.add(row.sku);
@@ -2037,8 +2336,20 @@ def html_template(initial_state):
             `).join("")
             : `<div class="sku-price-row"><span class="sku-chip">SKU 未填</span><span class="sku-price">单价 $0.00</span></div>`;
           const title = `${{dateText}} | ${{activity.type}} | ${{skuText}}`;
+          const rowIds = activity.rowIds.map(id => escapeAttr(id)).join(",");
+          const statusClass = activity.status === "confirmed" ? "confirmed" : "tentative";
           return `
             <div class="activity-event" title="${{escapeAttr(title)}}">
+              <div class="event-head">
+                <div class="event-meta">${{escapeAttr(dateText)}} | ${{escapeAttr(activity.type)}}</div>
+                <div class="event-actions">
+                  <select class="event-status-select ${{statusClass}}" data-event-status="${{rowIds}}">
+                    <option value="tentative" ${{activity.status === "tentative" ? "selected" : ""}}>暂定</option>
+                    <option value="confirmed" ${{activity.status === "confirmed" ? "selected" : ""}}>已定</option>
+                  </select>
+                  <button class="event-delete" type="button" data-delete-event="${{rowIds}}">删除</button>
+                </div>
+              </div>
               <div class="event-meta">${{escapeAttr(dateText)}} ｜ ${{escapeAttr(activity.type)}}</div>
               <div class="event-sub">${{num(activity.skuCount)}} SKU${{modelText ? ` ｜ ${{escapeAttr(modelText)}}` : ""}}</div>
               <div class="event-skus">${{skuChips}}</div>
@@ -2051,6 +2362,7 @@ def html_template(initial_state):
               <div class="timeline-label">${{row.label}}</div>
               <div class="timeline-count ${{row.count ? "" : "empty"}}">${{num(row.count)}}</div>
             </div>
+            <button class="timeline-add" type="button" data-add-month="${{row.month}}">+ 新增活动</button>
             <div class="timeline-chips">${{chips}}</div>
             <div class="timeline-events">${{details || `<div class="event-empty">暂无活动</div>`}}</div>
           </div>`;
@@ -2067,6 +2379,15 @@ def html_template(initial_state):
             <div class="timeline-row">${{half.rows.map(renderMonth).join("")}}</div>
           </div>`;
       }}).join("");
+      container.querySelectorAll("[data-add-month]").forEach(button => {{
+        button.addEventListener("click", () => openActivityEditor(Number(button.dataset.addMonth || 0)));
+      }});
+      container.querySelectorAll("[data-delete-event]").forEach(button => {{
+        button.addEventListener("click", () => deleteTimelineActivity(String(button.dataset.deleteEvent || "").split(",").filter(Boolean)));
+      }});
+      container.querySelectorAll("[data-event-status]").forEach(select => {{
+        select.addEventListener("change", () => setRowsStatus(String(select.dataset.eventStatus || "").split(",").filter(Boolean), select.value));
+      }});
     }}
 
     function renderProductMatrices() {{
@@ -2608,7 +2929,10 @@ def html_template(initial_state):
             row.label,
             row.count,
             row.categories.map(category => `${{category.type}} x${{category.count}}`).join("; "),
-            row.activities.map(activity => `${{activity.startDate || ""}}-${{activity.endDate || ""}} | ${{activity.type}} | ${{activity.skuCount}} SKU | QTY ${{Math.round(activity.qty)}} | Income ${{Math.round(activity.income)}}`).join("; "),
+            row.activities.map(activity => {{
+              const skuDetail = (activity.skuDetails || []).map(item => `${{item.sku}} ${{priceMoney(item.price)}}`).join(", ");
+              return `${{activity.startDate || ""}}-${{activity.endDate || ""}} | ${{activity.type}} | ${{activityStatusText(activity.status)}} | ${{activity.skuCount}} SKU | ${{skuDetail}} | QTY ${{Math.round(activity.qty)}} | Income ${{Math.round(activity.income)}}`;
+            }}).join("; "),
           ]),
         ]),
         excelSheet("Inventory", [
@@ -2695,6 +3019,14 @@ def html_template(initial_state):
         renderSkuTable();
         renderSkuGapTable();
       }}
+    }});
+    document.getElementById("activityForm").addEventListener("submit", event => {{
+      event.preventDefault();
+      createActivityRowsFromForm();
+    }});
+    document.getElementById("activityCancelBtn").addEventListener("click", closeActivityEditor);
+    document.getElementById("activityEditor").addEventListener("click", event => {{
+      if (event.target.id === "activityEditor") closeActivityEditor();
     }});
 
     window.addEventListener("resize", () => {{
