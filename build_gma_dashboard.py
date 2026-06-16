@@ -1059,9 +1059,18 @@ def html_template(initial_state):
       font-size: 11px;
     }}
     .event-skus {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
+      display: grid;
+      gap: 5px;
+    }}
+    .sku-price-row {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 5px;
+      align-items: start;
+      border: 1px solid #e2ece4;
+      background: #f6fbf7;
+      border-radius: 7px;
+      padding: 5px 6px;
     }}
     .sku-chip {{
       border-radius: 5px;
@@ -1071,6 +1080,26 @@ def html_template(initial_state):
       font-size: 11px;
       font-weight: 720;
       line-height: 1.25;
+      overflow-wrap: anywhere;
+    }}
+    .sku-model {{
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }}
+    .sku-price {{
+      justify-self: start;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #dfe9df;
+      color: #27313a;
+      padding: 3px 7px;
+      font-size: 11px;
+      font-weight: 820;
+      white-space: nowrap;
     }}
     .event-empty {{
       color: var(--muted);
@@ -1329,7 +1358,7 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v12";
+    const STORAGE_KEY = "gma-2026-dashboard-v13";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -1373,6 +1402,11 @@ def html_template(initial_state):
     function money(value) {{
       const number = Number(value || 0);
       return "$" + number.toLocaleString("en-US", {{ maximumFractionDigits: 0 }});
+    }}
+
+    function priceMoney(value) {{
+      const number = Number(value || 0);
+      return "$" + number.toLocaleString("en-US", {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
     }}
 
     function num(value, digits = 0) {{
@@ -1678,6 +1712,15 @@ def html_template(initial_state):
       return String(value || "").replace(/^2026-/, "").replace(/^2025-/, "");
     }}
 
+    function unitPriceFromRow(row) {{
+      const explicitPrice = Number(row.effectivePromoPrice || row.promoPrice || 0);
+      if (explicitPrice > 0) return explicitPrice;
+      const qty = Number(row.qty || row.forecastQty || 0);
+      const income = Number(row.totalIncome || row.grossRev || row.forecastTotalIncome || 0);
+      if (qty > 0 && income > 0) return income / qty;
+      return Number(row.price || 0);
+    }}
+
     function activityTimelineRows() {{
       const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       const months = Array.from({{ length: 12 }}, (_, index) => ({{
@@ -1706,20 +1749,41 @@ def html_template(initial_state):
             income: 0,
             skus: new Set(),
             models: new Set(),
+            skuMap: new Map(),
           }});
         }}
         const event = events.get(key);
+        const income = Number(row.totalIncome || row.grossRev || 0);
         event.qty += Number(row.qty || 0);
-        event.income += Number(row.totalIncome || row.grossRev || 0);
+        event.income += income;
         if (row.sku) event.skus.add(row.sku);
         if (row.model) event.models.add(row.model);
+        if (row.sku) {{
+          if (!event.skuMap.has(row.sku)) {{
+            event.skuMap.set(row.sku, {{
+              sku: row.sku,
+              model: row.model || "",
+              price: unitPriceFromRow(row),
+              qty: 0,
+              income: 0,
+            }});
+          }}
+          const skuItem = event.skuMap.get(row.sku);
+          skuItem.qty += Number(row.qty || 0);
+          skuItem.income += income;
+          if (!skuItem.model && row.model) skuItem.model = row.model;
+          if (!Number(skuItem.price || 0)) skuItem.price = unitPriceFromRow(row);
+        }}
       }});
       Array.from(events.values()).forEach(event => {{
         event.skuList = Array.from(event.skus);
         event.modelList = Array.from(event.models);
+        event.skuDetails = Array.from(event.skuMap.values())
+          .sort((a, b) => a.sku.localeCompare(b.sku));
         event.skuCount = event.skuList.length;
         delete event.skus;
         delete event.models;
+        delete event.skuMap;
         const month = months[event.month - 1];
         month.activities.push(event);
         month.categoryMap.set(event.type, (month.categoryMap.get(event.type) || 0) + 1);
@@ -1956,9 +2020,17 @@ def html_template(initial_state):
           const dateText = activity.startDate || activity.endDate ? `${{shortDate(activity.startDate)}}-${{shortDate(activity.endDate)}}` : "日期未填";
           const skuText = activity.skuList.length ? activity.skuList.join(" / ") : "SKU 未填";
           const modelText = activity.modelList.length ? activity.modelList.join(" / ") : "";
-          const skuChips = activity.skuList.length
-            ? activity.skuList.map(sku => `<span class="sku-chip">${{escapeAttr(sku)}}</span>`).join("")
-            : `<span class="sku-chip">SKU 未填</span>`;
+          const skuChips = activity.skuDetails && activity.skuDetails.length
+            ? activity.skuDetails.map(item => `
+              <div class="sku-price-row">
+                <div>
+                  <span class="sku-chip">${{escapeAttr(item.sku)}}</span>
+                  ${{item.model ? `<span class="sku-model">${{escapeAttr(item.model)}}</span>` : ""}}
+                </div>
+                <span class="sku-price">单价 ${{priceMoney(item.price)}}</span>
+              </div>
+            `).join("")
+            : `<div class="sku-price-row"><span class="sku-chip">SKU 未填</span><span class="sku-price">单价 $0.00</span></div>`;
           const title = `${{dateText}} | ${{activity.type}} | ${{skuText}}`;
           return `
             <div class="activity-event" title="${{escapeAttr(title)}}">
