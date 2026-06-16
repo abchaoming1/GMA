@@ -883,7 +883,7 @@ def html_template(initial_state):
     }}
     .variant-kpis {{
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }}
     .variant-metric {{
@@ -1358,7 +1358,7 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v13";
+    const STORAGE_KEY = "gma-2026-dashboard-v14";
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -1554,7 +1554,7 @@ def html_template(initial_state):
       function get(sku, model) {{
         if (!map.has(sku)) map.set(sku, {{
           sku, model: model || "", qty25: 0, income25: 0, first25: 0, second25: 0, net25: 0,
-          qty26: 0, income26: 0, first26: 0, second26: 0, actual26: 0, forecast26: 0, inventory: 0
+          qty26: 0, income26: 0, first26: 0, second26: 0, actual26: 0, forecast26: 0, inventory: 0, unitPrice: 0
         }});
         const item = map.get(sku);
         if (!item.model && model) item.model = model;
@@ -1570,15 +1570,20 @@ def html_template(initial_state):
       }});
       state.rows2026.forEach(row => {{
         const item = get(row.sku, row.model);
+        const unitPrice = unitPriceFromRow(row);
         item.qty26 += Number(row.qty || 0);
         item.income26 += Number(row.totalIncome || 0);
         item.first26 += Number(row.firstPayment || 0);
         item.second26 += Number(row.secondPayment || 0);
         item.actual26 += Number(row.netRev || 0);
         item.inventory += Number(row.beginInventory || 0);
+        if (!Number(item.unitPrice || 0) && unitPrice > 0) item.unitPrice = unitPrice;
       }});
       return Array.from(map.values()).map(item => {{
         item.net26 = item.actual26;
+        const inferred26Price = item.qty26 > 0 && item.income26 > 0 ? item.income26 / item.qty26 : 0;
+        const inferred25Price = item.qty25 > 0 && item.income25 > 0 ? item.income25 / item.qty25 : 0;
+        item.unitPrice = inferred26Price || item.unitPrice || inferred25Price;
         item.qtyGrowth = item.qty25 ? item.qty26 / item.qty25 - 1 : null;
         item.incomeGrowth = item.income25 ? item.income26 / item.income25 - 1 : null;
         item.qtyTarget = skuTargetQty(item);
@@ -2081,6 +2086,7 @@ def html_template(initial_state):
           <div class="variant-card">
             <div class="variant-name">${{escapeAttr(variant.sku)}}<span>${{escapeAttr(variant.model || "")}}</span></div>
             <div class="variant-kpis">
+              <div class="variant-metric"><span>单价</span><strong>${{priceMoney(variant.unitPrice)}}</strong></div>
               <div class="variant-metric"><span>2026 QTY</span><strong>${{num(variant.qty26)}} QTY</strong></div>
               <div class="variant-metric"><span>2026 收入</span><strong>${{money(variant.income26)}}</strong></div>
               <div class="variant-metric"><span>收入缺口</span><strong class="${{variant.incomeGap > 0 ? "negative" : "positive"}}">${{money(variant.incomeGap)}}</strong></div>
@@ -2569,12 +2575,13 @@ def html_template(initial_state):
           ...gaps.map(row => [row.sku, row.model, row.qty25, row.qtyTarget, row.qty26, row.qtyGap, row.qtyCompletion, row.income25, row.incomeTarget, row.income26, row.incomeGap, row.incomeCompletion]),
         ]),
         excelSheet("Product Matrix", [
-          ["Family SKU", "Sub SKU Count", "Sub SKU", "Model", "2025 QTY", "2026 QTY", "Target QTY", "QTY Gap", "QTY Completion", "2025 Total Income", "2026 Total Income", "Target Total Income", "Income Gap", "Income Completion"],
+          ["Family SKU", "Sub SKU Count", "Sub SKU", "Model", "Unit Price", "2025 QTY", "2026 QTY", "Target QTY", "QTY Gap", "QTY Completion", "2025 Total Income", "2026 Total Income", "Target Total Income", "Income Gap", "Income Completion"],
           ...productRows.flatMap(row => row.variants.map(variant => [
             row.family,
             row.variants.length,
             variant.sku,
             variant.model,
+            variant.unitPrice,
             variant.qty25,
             variant.qty26,
             variant.qtyTarget,
