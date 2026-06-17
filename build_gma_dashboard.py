@@ -1048,13 +1048,43 @@ def html_template(initial_state):
       border-radius: 7px;
       padding: 8px;
       display: grid;
-      gap: 6px;
+      gap: 8px;
     }}
     .event-head {{
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 8px;
-      align-items: start;
+      grid-template-columns: 1fr;
+      gap: 7px;
+    }}
+    .event-title {{
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }}
+    .event-date {{
+      display: inline-flex;
+      width: max-content;
+      max-width: 100%;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #18383d;
+      border-left: 4px solid var(--orange);
+      border-radius: 6px;
+      background: #123238;
+      color: #ffffff;
+      padding: 5px 8px;
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: 0;
+      white-space: nowrap;
+      box-shadow: 0 5px 12px rgba(12, 42, 47, 0.12);
+    }}
+    .event-type {{
+      color: #44565e;
+      font-size: 11px;
+      font-weight: 780;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
     }}
     .event-meta {{
       color: #334047;
@@ -1070,7 +1100,7 @@ def html_template(initial_state):
       align-items: center;
       gap: 5px;
       flex-wrap: wrap;
-      justify-content: flex-end;
+      justify-content: flex-start;
     }}
     .event-status-select {{
       min-height: 24px;
@@ -1512,8 +1542,8 @@ def html_template(initial_state):
 
   <script>
     const INITIAL_STATE = {state_json};
-    const STORAGE_KEY = "gma-2026-dashboard-v15";
-    const STORAGE_FALLBACK_KEYS = ["gma-2026-dashboard-v14", "gma-2026-dashboard-v13", "gma-2026-dashboard-v12"];
+    const STORAGE_KEY = "gma-2026-dashboard-v16";
+    const STORAGE_FALLBACK_KEYS = ["gma-2026-dashboard-v15", "gma-2026-dashboard-v14", "gma-2026-dashboard-v13", "gma-2026-dashboard-v12"];
     let state = loadState();
     let activeView = "dashboard";
     const skuFilters = {{ search: "", sort: "incomeGap", onlyGap: false }};
@@ -2341,7 +2371,10 @@ def html_template(initial_state):
           return `
             <div class="activity-event" title="${{escapeAttr(title)}}">
               <div class="event-head">
-                <div class="event-meta">${{escapeAttr(dateText)}} | ${{escapeAttr(activity.type)}}</div>
+                <div class="event-title">
+                  <div class="event-date">${{escapeAttr(dateText)}}</div>
+                  <div class="event-type">${{escapeAttr(activity.type)}}</div>
+                </div>
                 <div class="event-actions">
                   <select class="event-status-select ${{statusClass}}" data-event-status="${{rowIds}}">
                     <option value="tentative" ${{activity.status === "tentative" ? "selected" : ""}}>暂定</option>
